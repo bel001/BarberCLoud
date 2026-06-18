@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Barbero | BarberCloud</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-mark">BC</span><span>BarberCloud</span></div>
+  <nav><a href="#" onclick="AUTH.logout()">Salir</a></nav>
+</header>
+<main class="dashboard">
+  <section class="dashboard-card">
+    <p class="eyebrow">Barbero</p>
+    <h2>Agenda del día</h2>
+    <div id="agenda" class="table-list"></div>
+  </section>
+</main>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/barbero.js"></script>
+</body>
+</html>
