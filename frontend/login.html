@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Ingresar | BarberCloud</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">BC</span><span>BarberCloud</span></div>
+    <nav>
+      <a href="index.html">Inicio</a>
+      <a href="register.html">Crear cuenta</a>
+    </nav>
+  </header>
+
+  <main class="form-card">
+    <p class="eyebrow">Acceso seguro</p>
+    <h2>Ingresa a tu cuenta</h2>
+    <p class="card-text">El sistema detectará automáticamente tu tipo de cuenta.</p>
+
+    <form id="formLogin">
+      <label>Correo electrónico</label>
+      <input id="email" type="email" required placeholder="correo@barbercloud.com">
+
+      <label>Contraseña</label>
+      <input id="password" type="password" required placeholder="********">
+
+      <button class="btn-primary" type="submit">Ingresar</button>
+    </form>
+
+    <div id="resultado" class="notice"></div>
+  </main>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script>
+    document.getElementById("formLogin").addEventListener("submit", iniciarSesion);
+  </script>
+</body>
+</html>
