@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Reservar | BarberCloud</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">BC</span><span>BarberCloud</span></div>
+    <nav>
+      <a href="index.html">Inicio</a>
+      <a href="login.html">Ingresar</a>
+    </nav>
+  </header>
+
+  <main class="form-card">
+    <p class="eyebrow">Reserva online</p>
+    <h2>Elige tu horario</h2>
+    <p>Puedes revisar la disponibilidad sin cuenta. Para confirmar la cita deberás iniciar sesión.</p>
+
+    <form id="formReservaPublica">
+      <label>Servicio</label>
+      <select id="servicioId"></select>
+
+      <label>Barbero</label>
+      <select id="barberoId"></select>
+
+      <label>Fecha</label>
+      <input id="fecha" type="date" required>
+
+      <label>Hora</label>
+      <select id="hora"></select>
+
+      <button class="btn-primary" type="submit">Confirmar reserva</button>
+    </form>
+
+    <div id="resultado" class="notice"></div>
+  </main>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/reservar-publico.js"></script>
+</body>
+</html>
