@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Crear cuenta | BarberCloud</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">BC</span><span>BarberCloud</span></div>
+    <nav>
+      <a href="index.html">Inicio</a>
+      <a href="login.html">Ingresar</a>
+    </nav>
+  </header>
+
+  <main class="form-card">
+    <p class="eyebrow">Cuenta cliente</p>
+    <h2>Crea tu cuenta para reservar</h2>
+    <p class="card-text">Puedes navegar sin cuenta, pero para confirmar una cita necesitas registrarte.</p>
+
+    <form>
+      <label>Nombre completo</label>
+      <input type="text" placeholder="Tu nombre">
+
+      <label>Correo electrónico</label>
+      <input type="email" placeholder="correo@email.com">
+
+      <label>Contraseña</label>
+      <input type="password" placeholder="********">
+
+      <button class="btn-primary" type="button">Crear cuenta</button>
+    </form>
+
+    <div class="notice">En AWS este registro se conectará con Amazon Cognito.</div>
+  </main>
+</body>
+</html>
