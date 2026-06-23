@@ -30,6 +30,8 @@ resource "aws_dynamodb_table" "barbercloud" {
     range_key       = "gsi1sk"
     projection_type = "ALL"
   }
-
+  point_in_time_recovery {
+    enabled = true
+  }
   tags = local.common_tags
 }
