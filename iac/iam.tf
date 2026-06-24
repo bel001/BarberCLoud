@@ -50,6 +50,9 @@ resource "aws_iam_policy" "lambda_policy" {
       {
         Effect = "Allow"
         Action = [
+          "sqs:DeleteMessage",
+          "sqs:GetQueueAttributes",
+          "sqs:ReceiveMessage",
           "sqs:SendMessage"
         ]
         Resource = aws_sqs_queue.notificaciones.arn

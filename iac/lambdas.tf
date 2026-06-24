@@ -29,7 +29,6 @@ resource "aws_lambda_function" "functions" {
   }
 
   depends_on = [
-    aws_iam_role_policy_attachment.lambda_attach,
     aws_cloudwatch_log_group.lambda
   ]
 }
@@ -39,4 +38,31 @@ resource "aws_cloudwatch_log_group" "lambda" {
 
   name              = "/aws/lambda/${local.name}-${replace(each.key, "_", "-")}"
   retention_in_days = 14
+}
+
+resource "aws_cloudwatch_log_group" "post_confirm_cliente" {
+  name              = "/aws/lambda/${local.name}-post-confirm-cliente"
+  retention_in_days = 14
+}
+
+resource "aws_lambda_function" "post_confirm_cliente" {
+  function_name    = "${local.name}-post-confirm-cliente"
+  role             = aws_iam_role.lambda_role.arn
+  handler          = "src/handlers/postConfirmCliente.handler"
+  runtime          = "nodejs20.x"
+  filename         = data.archive_file.lambda_package.output_path
+  source_code_hash = data.archive_file.lambda_package.output_base64sha256
+  timeout          = 15
+  memory_size      = 256
+
+  environment {
+    variables = {
+      TABLE_NAME                          = aws_dynamodb_table.barbercloud.name
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED = "1"
+    }
+  }
+
+  depends_on = [
+    aws_cloudwatch_log_group.post_confirm_cliente
+  ]
 }

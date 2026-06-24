@@ -91,6 +91,13 @@ resource "aws_lambda_permission" "sns_availability" {
   source_arn    = aws_sns_topic.disponibilidad.arn
 }
 
+resource "aws_lambda_event_source_mapping" "notificaciones_queue" {
+  event_source_arn = aws_sqs_queue.notificaciones.arn
+  function_name    = aws_lambda_function.functions["sqs_notification_consumer"].arn
+  batch_size       = 5
+  enabled          = true
+}
+
 resource "aws_ses_email_identity" "sender" {
   email = var.ses_sender_email
 }

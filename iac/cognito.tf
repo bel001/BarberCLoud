@@ -18,6 +18,10 @@ resource "aws_cognito_user_pool" "users" {
   }
 
   mfa_configuration = "OFF"
+
+  lambda_config {
+    post_confirmation = aws_lambda_function.post_confirm_cliente.arn
+  }
 }
 
 resource "aws_cognito_user_pool_client" "web_client" {
@@ -67,4 +71,12 @@ resource "aws_cognito_user_group" "secretaria" {
 resource "aws_cognito_user_group" "admin" {
   name         = "ADMIN"
   user_pool_id = aws_cognito_user_pool.users.id
+}
+
+resource "aws_lambda_permission" "cognito_post_confirm" {
+  statement_id  = "AllowCognitoPostConfirm"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.post_confirm_cliente.function_name
+  principal     = "cognito-idp.amazonaws.com"
+  source_arn    = aws_cognito_user_pool.users.arn
 }

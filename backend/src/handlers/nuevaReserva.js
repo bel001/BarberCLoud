@@ -1,6 +1,6 @@
 import { v4 as uuid } from "uuid";
 import { requireRole, getUser } from "../lib/auth.js";
-import { transactWrite } from "../lib/dynamodb.js";
+import { getItem, transactWrite } from "../lib/dynamodb.js";
 import { audit } from "../lib/audit.js";
 import { publishReservationEvent } from "../lib/notifications.js";
 import { created, badRequest, serverError } from "../lib/response.js";
@@ -21,6 +21,7 @@ export async function handler(event) {
 
     const reservaId = `res_${uuid()}`;
     const now = new Date().toISOString();
+    const servicio = await getItem(`SERVICIO#${servicioId}`, "PROFILE");
 
     const reservaCliente = {
       pk: `CLIENTE#${user.sub}`,
@@ -31,6 +32,8 @@ export async function handler(event) {
       clienteNombre: user.name,
       clienteCorreo: user.email,
       servicioId,
+      servicioNombre: servicio?.nombre || servicioId,
+      precio: Number(servicio?.precio || 0),
       barberoId,
       fecha,
       hora,
@@ -77,6 +80,10 @@ export async function handler(event) {
       reservaId
     });
   } catch (error) {
+    if (error.name === "TransactionCanceledException") {
+      return badRequest("Horario no disponible");
+    }
+
     return serverError(error);
   }
 }

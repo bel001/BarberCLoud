@@ -1,5 +1,5 @@
 import { requireRole, getUser } from "../lib/auth.js";
-import { queryByPk, findClienteByEmail, scanByTipo, transactWrite } from "../lib/dynamodb.js";
+import { getItem, queryByPk, findClienteByEmail, scanByTipo, transactWrite } from "../lib/dynamodb.js";
 import { audit } from "../lib/audit.js";
 import { publishReservationEvent } from "../lib/notifications.js";
 import { created, ok, badRequest, serverError } from "../lib/response.js";
@@ -24,6 +24,10 @@ export async function handler(event) {
 
     return badRequest("Operacion no soportada");
   } catch (error) {
+    if (error.name === "TransactionCanceledException") {
+      return badRequest("Horario no disponible");
+    }
+
     return serverError(error);
   }
 }
@@ -57,6 +61,7 @@ async function registrarReservaPresencial(event) {
 
   const reservaId = `res_${uuid()}`;
   const now = new Date().toISOString();
+  const servicio = await getItem(`SERVICIO#${servicioId}`, "PROFILE");
 
   const reservaCliente = {
     pk: `CLIENTE#${cliente.clienteId}`,
@@ -67,6 +72,8 @@ async function registrarReservaPresencial(event) {
     clienteNombre: cliente.nombre,
     clienteCorreo: cliente.email,
     servicioId,
+    servicioNombre: servicio?.nombre || servicioId,
+    precio: Number(servicio?.precio || 0),
     barberoId,
     fecha,
     hora,
