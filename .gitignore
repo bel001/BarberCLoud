@@ -1,5 +1,7 @@
 .terraform/
 iac/lambda.zip
 iac/tfplan
+iac/terraform.tfstate
+iac/terraform.tfstate.backup
 backend/node_modules/
 backend/dist/
