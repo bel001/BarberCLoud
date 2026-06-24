@@ -30,13 +30,17 @@ export function badRequest(message) {
 }
 
 export function serverError(error) {
-  const statusCode = error.statusCode || 500;
+  const statusCode = error.statusCode || (error.name === "TransactionCanceledException" ? 400 : 500);
 
   return {
     statusCode,
     headers: jsonHeaders,
     body: JSON.stringify({
-      error: statusCode === 500 ? "Error interno del servidor" : error.message
+      error: statusCode === 500
+        ? "Error interno del servidor"
+        : error.name === "TransactionCanceledException"
+          ? "La operacion no pudo completarse de forma consistente"
+          : error.message
     })
   };
 }

@@ -1,6 +1,10 @@
 import { requireRole, getUser } from "../lib/auth.js";
-import { queryByPk, putItem } from "../lib/dynamodb.js";
+import { queryByPk, transactWrite } from "../lib/dynamodb.js";
+import { audit } from "../lib/audit.js";
+import { publishReservationEvent } from "../lib/notifications.js";
 import { ok, badRequest, serverError } from "../lib/response.js";
+
+const tableName = process.env.TABLE_NAME || "barbercloud-local";
 
 export async function handler(event) {
   try {
@@ -34,15 +38,29 @@ export async function handler(event) {
       canceladoEn: new Date().toISOString()
     };
 
-    await putItem(reservaCancelada);
+    const writes = [{
+      Put: {
+        TableName: tableName,
+        Item: reservaCancelada
+      }
+    }];
 
     if (reserva.barberoId) {
-      await putItem({
-        ...reservaCancelada,
-        pk: `BARBERO#${reserva.barberoId}`,
-        sk: `RESERVA#${reserva.fecha}#${reserva.hora}`
+      writes.push({
+        Put: {
+          TableName: tableName,
+          Item: {
+            ...reservaCancelada,
+            pk: `BARBERO#${reserva.barberoId}`,
+            sk: `RESERVA#${reserva.fecha}#${reserva.hora}`
+          }
+        }
       });
     }
+
+    await transactWrite(writes);
+    await audit(event, "RESERVA_CANCELAR", "OK", { reservaId });
+    await publishReservationEvent("RESERVA_CANCELADA", reservaCancelada);
 
     return ok({
       message: "Reserva cancelada correctamente",

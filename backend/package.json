@@ -5,11 +5,16 @@
   "private": true,
   "scripts": {
     "create-table": "node scripts/create-table.js",
+    "create-demo-users": "node scripts/create-demo-users.js",
     "seed": "node scripts/seed.js",
     "dev": "node src/local-server.js"
   },
   "dependencies": {
+    "@aws-sdk/client-cognito-identity-provider": "^3.614.0",
     "@aws-sdk/client-dynamodb": "^3.614.0",
+    "@aws-sdk/client-ses": "^3.614.0",
+    "@aws-sdk/client-sns": "^3.614.0",
+    "@aws-sdk/client-sqs": "^3.614.0",
     "@aws-sdk/lib-dynamodb": "^3.614.0",
     "cors": "^2.8.5",
     "express": "^4.19.2",

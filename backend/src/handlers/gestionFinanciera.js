@@ -13,7 +13,8 @@ export async function handler(event) {
     return ok({
       totalReservas: activas.length,
       online: activas.filter(item => item.origen === "ONLINE").length,
-      presenciales: activas.filter(item => item.origen === "PRESENCIAL").length
+      presenciales: activas.filter(item => item.origen === "PRESENCIAL").length,
+      ingresosEstimados: activas.reduce((total, item) => total + Number(item.precio || 0), 0)
     });
   } catch (error) {
     return serverError(error);

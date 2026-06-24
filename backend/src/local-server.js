@@ -8,6 +8,11 @@ import { handler as cancelarReserva } from "./handlers/cancelarReserva.js";
 import { handler as gestionClientes } from "./handlers/gestionClientes.js";
 import { handler as agendaBarbero } from "./handlers/gestionAgendaBarbero.js";
 import { handler as reporteFinanciero } from "./handlers/gestionFinanciera.js";
+import { handler as gestionInsumos } from "./handlers/gestionInsumos.js";
+import { handler as gestionPOS } from "./handlers/gestionPOS.js";
+import { handler as gestionInventario } from "./handlers/gestionInventario.js";
+import { handler as gestionPersonal } from "./handlers/gestionPersonal.js";
+import { handler as gestionNegocio } from "./handlers/gestionNegocio.js";
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -103,12 +108,68 @@ app.post("/secretaria/reservas-presenciales", authLocal, async (req, res) => {
   await sendLambda(res, await gestionClientes(lambdaEvent(req, req.localUser.role, req.localUser)));
 });
 
+app.get("/secretaria/clientes", authLocal, async (req, res) => {
+  await sendLambda(res, await gestionClientes(lambdaEvent(req, req.localUser.role, req.localUser)));
+});
+
+app.get("/secretaria/pos", authLocal, async (req, res) => {
+  await sendLambda(res, await gestionPOS(lambdaEvent(req, req.localUser.role, req.localUser)));
+});
+
+app.post("/secretaria/pos", authLocal, async (req, res) => {
+  await sendLambda(res, await gestionPOS(lambdaEvent(req, req.localUser.role, req.localUser)));
+});
+
+app.get("/secretaria/inventario", authLocal, async (req, res) => {
+  await sendLambda(res, await gestionInventario(lambdaEvent(req, req.localUser.role, req.localUser)));
+});
+
+app.post("/secretaria/inventario", authLocal, async (req, res) => {
+  await sendLambda(res, await gestionInventario(lambdaEvent(req, req.localUser.role, req.localUser)));
+});
+
 app.get("/barbero/agenda", authLocal, async (req, res) => {
   await sendLambda(res, await agendaBarbero(lambdaEvent(req, req.localUser.role, req.localUser)));
 });
 
+app.get("/barbero/insumos", authLocal, async (req, res) => {
+  await sendLambda(res, await gestionInsumos(lambdaEvent(req, req.localUser.role, req.localUser)));
+});
+
+app.post("/barbero/insumos", authLocal, async (req, res) => {
+  await sendLambda(res, await gestionInsumos(lambdaEvent(req, req.localUser.role, req.localUser)));
+});
+
 app.get("/admin/reporte-financiero", authLocal, async (req, res) => {
   await sendLambda(res, await reporteFinanciero(lambdaEvent(req, req.localUser.role, req.localUser)));
+});
+
+app.post("/admin/personal", authLocal, async (req, res) => {
+  await sendLambda(res, await gestionPersonal(lambdaEvent(req, req.localUser.role, req.localUser)));
+});
+
+app.get("/admin/servicios", authLocal, async (req, res) => {
+  await sendLambda(res, await gestionNegocio(lambdaEvent(req, req.localUser.role, req.localUser)));
+});
+
+app.post("/admin/servicios", authLocal, async (req, res) => {
+  await sendLambda(res, await gestionNegocio(lambdaEvent(req, req.localUser.role, req.localUser)));
+});
+
+app.get("/admin/agenda", authLocal, async (req, res) => {
+  await sendLambda(res, await agendaBarbero(lambdaEvent(req, req.localUser.role, req.localUser)));
+});
+
+app.get("/admin/insumos", authLocal, async (req, res) => {
+  await sendLambda(res, await gestionInsumos(lambdaEvent(req, req.localUser.role, req.localUser)));
+});
+
+app.get("/admin/inventario", authLocal, async (req, res) => {
+  await sendLambda(res, await gestionInventario(lambdaEvent(req, req.localUser.role, req.localUser)));
+});
+
+app.get("/admin/pos", authLocal, async (req, res) => {
+  await sendLambda(res, await gestionPOS(lambdaEvent(req, req.localUser.role, req.localUser)));
 });
 
 app.listen(PORT, () => {

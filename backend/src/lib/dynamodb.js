@@ -1,9 +1,11 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
+  GetCommand,
   PutCommand,
   QueryCommand,
-  ScanCommand
+  ScanCommand,
+  TransactWriteCommand
 } from "@aws-sdk/lib-dynamodb";
 
 const tableName = process.env.TABLE_NAME || "barbercloud-local";
@@ -24,12 +26,34 @@ export async function putItem(item) {
   }));
 }
 
+export async function getItem(pk, sk) {
+  const response = await client.send(new GetCommand({
+    TableName: tableName,
+    Key: { pk, sk }
+  }));
+
+  return response.Item || null;
+}
+
 export async function queryByPk(pk) {
   const response = await client.send(new QueryCommand({
     TableName: tableName,
     KeyConditionExpression: "pk = :pk",
     ExpressionAttributeValues: {
       ":pk": pk
+    }
+  }));
+
+  return response.Items || [];
+}
+
+export async function queryByGsiPk(gsi1pk) {
+  const response = await client.send(new QueryCommand({
+    TableName: tableName,
+    IndexName: "gsi1",
+    KeyConditionExpression: "gsi1pk = :gsi1pk",
+    ExpressionAttributeValues: {
+      ":gsi1pk": gsi1pk
     }
   }));
 
@@ -49,14 +73,24 @@ export async function findClienteByEmail(email) {
   return (response.Items || []).find(item => item.tipo === "CLIENTE") || null;
 }
 
-export async function scanReservas() {
+export async function scanByTipo(tipo) {
   const response = await client.send(new ScanCommand({
     TableName: tableName,
     FilterExpression: "tipo = :tipo",
     ExpressionAttributeValues: {
-      ":tipo": "RESERVA"
+      ":tipo": tipo
     }
   }));
 
   return response.Items || [];
+}
+
+export async function scanReservas() {
+  return scanByTipo("RESERVA");
+}
+
+export async function transactWrite(items) {
+  await client.send(new TransactWriteCommand({
+    TransactItems: items
+  }));
 }

@@ -1,7 +1,11 @@
 import { v4 as uuid } from "uuid";
 import { requireRole, getUser } from "../lib/auth.js";
-import { putItem, queryByPk } from "../lib/dynamodb.js";
+import { transactWrite } from "../lib/dynamodb.js";
+import { audit } from "../lib/audit.js";
+import { publishReservationEvent } from "../lib/notifications.js";
 import { created, badRequest, serverError } from "../lib/response.js";
+
+const tableName = process.env.TABLE_NAME || "barbercloud-local";
 
 export async function handler(event) {
   try {
@@ -15,19 +19,8 @@ export async function handler(event) {
       return badRequest("servicioId, barberoId, fecha y hora son obligatorios");
     }
 
-    const agenda = await queryByPk(`BARBERO#${barberoId}`);
-
-    const conflicto = agenda.find(item =>
-      item.fecha === fecha &&
-      item.hora === hora &&
-      item.estado !== "CANCELADA"
-    );
-
-    if (conflicto) {
-      return badRequest("Horario no disponible");
-    }
-
     const reservaId = `res_${uuid()}`;
+    const now = new Date().toISOString();
 
     const reservaCliente = {
       pk: `CLIENTE#${user.sub}`,
@@ -44,7 +37,7 @@ export async function handler(event) {
       origen: "ONLINE",
       estado: "CONFIRMADA",
       creadoPor: "CLIENTE",
-      creadoEn: new Date().toISOString()
+      creadoEn: now
     };
 
     const reservaAgenda = {
@@ -53,8 +46,31 @@ export async function handler(event) {
       sk: `RESERVA#${fecha}#${hora}`
     };
 
-    await putItem(reservaCliente);
-    await putItem(reservaAgenda);
+    await transactWrite([
+      {
+        Put: {
+          TableName: tableName,
+          Item: reservaCliente,
+          ConditionExpression: "attribute_not_exists(pk) OR estado = :cancelada",
+          ExpressionAttributeValues: {
+            ":cancelada": "CANCELADA"
+          }
+        }
+      },
+      {
+        Put: {
+          TableName: tableName,
+          Item: reservaAgenda,
+          ConditionExpression: "attribute_not_exists(pk) OR estado = :cancelada",
+          ExpressionAttributeValues: {
+            ":cancelada": "CANCELADA"
+          }
+        }
+      }
+    ]);
+
+    await audit(event, "RESERVA_CREAR", "OK", { reservaId, barberoId, fecha, hora });
+    await publishReservationEvent("RESERVA_CREADA", reservaCliente);
 
     return created({
       message: "Reserva creada correctamente",
