@@ -1,0 +1,5 @@
+.terraform/
+iac/lambda.zip
+iac/tfplan
+backend/node_modules/
+backend/dist/

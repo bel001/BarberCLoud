@@ -13,3 +13,15 @@ variable "ses_sender_email" {
   description = "Correo verificado en SES para enviar notificaciones"
   default     = "no-reply@barbercloud.com"
 }
+
+variable "frontend_bucket_name" {
+  type        = string
+  description = "Nombre opcional del bucket S3 para frontend. Si queda vacio se genera con project_name."
+  default     = ""
+}
+
+variable "cognito_domain_prefix" {
+  type        = string
+  description = "Prefijo opcional para el dominio Hosted UI de Cognito. Debe ser globalmente unico."
+  default     = ""
+}

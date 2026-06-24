@@ -1,104 +1,42 @@
 data "archive_file" "lambda_package" {
   type        = "zip"
-  source_dir  = "../backend/src"
-  output_path = "../backend/dist/lambda.zip"
+  source_dir  = "${path.module}/../backend"
+  output_path = "${path.module}/lambda.zip"
 }
 
-resource "aws_lambda_function" "consultar_disponibilidad" {
-  function_name = "${local.name}-consultar-disponibilidad"
-  role          = aws_iam_role.lambda_role.arn
-  handler       = "handlers/consultarDisponibilidad.handler"
-  runtime       = "nodejs20.x"
-  filename      = data.archive_file.lambda_package.output_path
+resource "aws_lambda_function" "functions" {
+  for_each = local.lambda_functions
+
+  function_name    = "${local.name}-${replace(each.key, "_", "-")}"
+  role             = aws_iam_role.lambda_role.arn
+  handler          = each.value
+  runtime          = "nodejs20.x"
+  filename         = data.archive_file.lambda_package.output_path
+  source_code_hash = data.archive_file.lambda_package.output_base64sha256
+  timeout          = 15
+  memory_size      = 256
 
   environment {
     variables = {
-      TABLE_NAME = aws_dynamodb_table.barbercloud.name
-      TOPIC_ARN  = aws_sns_topic.reservas.arn
+      TABLE_NAME                          = aws_dynamodb_table.barbercloud.name
+      TOPIC_ARN                           = aws_sns_topic.reservas.arn
+      AVAILABILITY_TOPIC_ARN              = aws_sns_topic.disponibilidad.arn
+      NOTIFICATION_QUEUE_URL              = aws_sqs_queue.notificaciones.url
+      SES_SENDER_EMAIL                    = var.ses_sender_email
+      USER_POOL_ID                        = aws_cognito_user_pool.users.id
+      AWS_NODEJS_CONNECTION_REUSE_ENABLED = "1"
     }
   }
 
-  tags = local.common_tags
+  depends_on = [
+    aws_iam_role_policy_attachment.lambda_attach,
+    aws_cloudwatch_log_group.lambda
+  ]
 }
 
-resource "aws_lambda_function" "nueva_reserva" {
-  function_name = "${local.name}-nueva-reserva"
-  role          = aws_iam_role.lambda_role.arn
-  handler       = "handlers/nuevaReserva.handler"
-  runtime       = "nodejs20.x"
-  filename      = data.archive_file.lambda_package.output_path
+resource "aws_cloudwatch_log_group" "lambda" {
+  for_each = local.lambda_functions
 
-  environment {
-    variables = {
-      TABLE_NAME = aws_dynamodb_table.barbercloud.name
-      TOPIC_ARN  = aws_sns_topic.reservas.arn
-    }
-  }
-
-  tags = local.common_tags
-}
-
-resource "aws_lambda_function" "cancelar_reserva" {
-  function_name = "${local.name}-cancelar-reserva"
-  role          = aws_iam_role.lambda_role.arn
-  handler       = "handlers/cancelarReserva.handler"
-  runtime       = "nodejs20.x"
-  filename      = data.archive_file.lambda_package.output_path
-
-  environment {
-    variables = {
-      TABLE_NAME = aws_dynamodb_table.barbercloud.name
-      TOPIC_ARN  = aws_sns_topic.reservas.arn
-    }
-  }
-
-  tags = local.common_tags
-}
-
-resource "aws_lambda_function" "gestion_clientes" {
-  function_name = "${local.name}-gestion-clientes"
-  role          = aws_iam_role.lambda_role.arn
-  handler       = "handlers/gestionClientes.handler"
-  runtime       = "nodejs20.x"
-  filename      = data.archive_file.lambda_package.output_path
-
-  environment {
-    variables = {
-      TABLE_NAME = aws_dynamodb_table.barbercloud.name
-    }
-  }
-
-  tags = local.common_tags
-}
-
-resource "aws_lambda_function" "gestion_agenda_barbero" {
-  function_name = "${local.name}-gestion-agenda-barbero"
-  role          = aws_iam_role.lambda_role.arn
-  handler       = "handlers/gestionAgendaBarbero.handler"
-  runtime       = "nodejs20.x"
-  filename      = data.archive_file.lambda_package.output_path
-
-  environment {
-    variables = {
-      TABLE_NAME = aws_dynamodb_table.barbercloud.name
-    }
-  }
-
-  tags = local.common_tags
-}
-
-resource "aws_lambda_function" "gestion_financiera" {
-  function_name = "${local.name}-gestion-financiera"
-  role          = aws_iam_role.lambda_role.arn
-  handler       = "handlers/gestionFinanciera.handler"
-  runtime       = "nodejs20.x"
-  filename      = data.archive_file.lambda_package.output_path
-
-  environment {
-    variables = {
-      TABLE_NAME = aws_dynamodb_table.barbercloud.name
-    }
-  }
-
-  tags = local.common_tags
+  name              = "/aws/lambda/${local.name}-${replace(each.key, "_", "-")}"
+  retention_in_days = 14
 }
