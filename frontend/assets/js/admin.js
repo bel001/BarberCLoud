@@ -7,6 +7,7 @@ async function cargarReporte() {
     <div class="row-item">Total reservas: ${data.totalReservas || 0}</div>
     <div class="row-item">Reservas online: ${data.online || 0}</div>
     <div class="row-item">Reservas presenciales: ${data.presenciales || 0}</div>
+    <div class="row-item">Ingresos estimados: S/ ${data.ingresosEstimados || 0}</div>
   `;
 }
 
