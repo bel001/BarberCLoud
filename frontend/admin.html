@@ -16,6 +16,40 @@
     <h2>Reporte general</h2>
     <div id="reporte" class="table-list"></div>
   </section>
+  <section class="dashboard-card">
+    <h2>Servicios y reglas</h2>
+    <form id="formServicio">
+      <label>Nombre</label>
+      <input id="nombreServicio" required value="Fade premium">
+      <label>Precio</label>
+      <input id="precioServicio" type="number" min="1" required value="50">
+      <button class="btn-primary" type="submit">Guardar servicio</button>
+    </form>
+    <div id="servicios" class="table-list"></div>
+  </section>
+  <section class="dashboard-card">
+    <h2>Crear usuario interno</h2>
+    <form id="formPersonal">
+      <label>Nombre</label>
+      <input id="nombrePersonal" required value="Nuevo Barbero">
+      <label>Correo</label>
+      <input id="emailPersonal" type="email" required placeholder="nuevo@barbercloud.com">
+      <label>Rol</label>
+      <select id="rolPersonal">
+        <option value="BARBERO">BARBERO</option>
+        <option value="SECRETARIA">SECRETARIA</option>
+        <option value="ADMIN">ADMIN</option>
+      </select>
+      <label>Contraseña temporal</label>
+      <input id="passwordPersonal" type="password" required value="BarberCloud2026!">
+      <button class="btn-primary" type="submit">Crear usuario</button>
+    </form>
+    <div id="personal" class="notice"></div>
+  </section>
+  <section class="dashboard-card">
+    <h2>Operación global</h2>
+    <div id="global" class="table-list"></div>
+  </section>
 </main>
 <script src="assets/js/config.js"></script>
 <script src="assets/js/auth.js"></script>

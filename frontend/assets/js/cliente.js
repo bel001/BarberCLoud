@@ -15,7 +15,8 @@ async function cargarReservas() {
     <div class="row-item">
       <strong>${item.fecha} ${item.hora}</strong><br>
       Servicio: ${item.servicioId}<br>
-      Estado: ${item.estado}
+      Estado: ${item.estado}<br>
+      ${item.estado !== "CANCELADA" ? `<button class="btn-secondary" onclick="cancelarReserva('${item.reservaId}')">Cancelar</button>` : ""}
     </div>
   `).join("");
 }
@@ -38,6 +39,12 @@ async function confirmarPendiente() {
   } else {
     document.getElementById("resultado").innerText = response.error;
   }
+}
+
+async function cancelarReserva(reservaId) {
+  const response = await API.post(`/reservas/${reservaId}/cancelar`, {}, session.token);
+  document.getElementById("resultado").innerText = response.message || response.error;
+  await cargarReservas();
 }
 
 document.addEventListener("DOMContentLoaded", cargarReservas);

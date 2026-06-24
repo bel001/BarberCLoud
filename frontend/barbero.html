@@ -16,6 +16,19 @@
     <h2>Agenda del día</h2>
     <div id="agenda" class="table-list"></div>
   </section>
+  <section class="dashboard-card">
+    <h2>Insumos de estación</h2>
+    <form id="formInsumo">
+      <label>Insumo</label>
+      <input id="insumoId" required value="gel">
+      <label>Nombre</label>
+      <input id="nombreInsumo" required value="Gel fijador">
+      <label>Cantidad</label>
+      <input id="cantidadInsumo" type="number" min="1" required value="1">
+      <button class="btn-primary" type="submit">Registrar consumo</button>
+    </form>
+    <div id="insumos" class="table-list"></div>
+  </section>
 </main>
 <script src="assets/js/config.js"></script>
 <script src="assets/js/auth.js"></script>

@@ -35,6 +35,12 @@
   <script src="assets/js/config.js"></script>
   <script src="assets/js/auth.js"></script>
   <script>
+    if (BARBERCLOUD_CONFIG.AUTH_MODE === "cognito") {
+      document.querySelector(".card-text").innerText = "Serás redirigido al login seguro de Amazon Cognito.";
+      document.getElementById("email").required = false;
+      document.getElementById("password").required = false;
+    }
+
     document.getElementById("formLogin").addEventListener("submit", iniciarSesion);
   </script>
 </body>

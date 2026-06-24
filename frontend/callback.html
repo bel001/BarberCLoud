@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Validando acceso | BarberCloud</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+</head>
+<body>
+  <main class="form-card">
+    <p class="eyebrow">Acceso seguro</p>
+    <h2>Validando cuenta</h2>
+    <div id="resultado" class="notice">Completando autenticación con Cognito...</div>
+  </main>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script>
+    AUTH.handleCognitoCallback();
+  </script>
+</body>
+</html>

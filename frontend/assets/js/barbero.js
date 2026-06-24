@@ -9,4 +9,30 @@ async function cargarAgenda() {
     : "<div class='row-item'>No hay citas asignadas.</div>";
 }
 
-document.addEventListener("DOMContentLoaded", cargarAgenda);
+async function cargarInsumos() {
+  const data = await API.get("/barbero/insumos", sessionBarbero.token);
+  const insumos = data.insumos || [];
+
+  document.getElementById("insumos").innerHTML = insumos.length
+    ? insumos.map(item => `<div class="row-item">${item.nombre}: ${item.cantidad}</div>`).join("")
+    : "<div class='row-item'>No hay consumos registrados.</div>";
+}
+
+async function registrarInsumo(event) {
+  event.preventDefault();
+
+  const payload = {
+    insumoId: document.getElementById("insumoId").value,
+    nombre: document.getElementById("nombreInsumo").value,
+    cantidad: Number(document.getElementById("cantidadInsumo").value)
+  };
+
+  await API.post("/barbero/insumos", payload, sessionBarbero.token);
+  await cargarInsumos();
+}
+
+document.addEventListener("DOMContentLoaded", () => {
+  cargarAgenda();
+  cargarInsumos();
+  document.getElementById("formInsumo").addEventListener("submit", registrarInsumo);
+});

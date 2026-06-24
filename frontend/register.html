@@ -29,10 +29,22 @@
       <label>Contraseña</label>
       <input type="password" placeholder="********">
 
-      <button class="btn-primary" type="button">Crear cuenta</button>
+      <button class="btn-primary" type="button" onclick="registrarCliente()">Crear cuenta</button>
     </form>
 
-    <div class="notice">En AWS este registro se conectará con Amazon Cognito.</div>
+    <div class="notice" id="resultado">En AWS este registro se conecta con Amazon Cognito.</div>
   </main>
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script>
+    function registrarCliente() {
+      if (BARBERCLOUD_CONFIG.AUTH_MODE === "cognito") {
+        AUTH.registerWithCognito();
+        return;
+      }
+
+      document.getElementById("resultado").innerText = "En modo local usa las cuentas demo del README.";
+    }
+  </script>
 </body>
 </html>
