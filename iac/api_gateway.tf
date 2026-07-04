@@ -6,6 +6,18 @@ locals {
     allow_origins     = ["*"]
     max_age           = 3600
   }
+
+  api_access_log_format = jsonencode({
+    requestId               = "$context.requestId"
+    ip                      = "$context.identity.sourceIp"
+    requestTime             = "$context.requestTime"
+    httpMethod              = "$context.httpMethod"
+    routeKey                = "$context.routeKey"
+    status                  = "$context.status"
+    protocol                = "$context.protocol"
+    responseLength          = "$context.responseLength"
+    integrationErrorMessage = "$context.integrationErrorMessage"
+  })
 }
 
 resource "aws_apigatewayv2_api" "disponibilidad" {
@@ -136,14 +148,6 @@ resource "aws_apigatewayv2_authorizer" "administrador_jwt" {
 
 locals {
   api_routes = {
-    disponibilidad_get = {
-      api_id             = aws_apigatewayv2_api.disponibilidad.id
-      execution_arn      = aws_apigatewayv2_api.disponibilidad.execution_arn
-      route_key          = "GET /disponibilidad"
-      lambda_key         = "consultar_disponibilidad"
-      authorization_type = "NONE"
-      authorizer_id      = null
-    }
     reserva_post = {
       api_id             = aws_apigatewayv2_api.reserva.id
       execution_arn      = aws_apigatewayv2_api.reserva.execution_arn
@@ -326,40 +330,101 @@ resource "aws_apigatewayv2_route" "routes" {
   authorizer_id      = each.value.authorizer_id
 }
 
+resource "aws_apigatewayv2_integration" "disponibilidad_public" {
+  api_id                 = aws_apigatewayv2_api.disponibilidad.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.functions["consultar_disponibilidad"].invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "disponibilidad_public" {
+  #checkov:skip=CKV_AWS_309:GET /disponibilidad es una consulta publica de solo lectura para clientes sin sesion.
+
+  api_id             = aws_apigatewayv2_api.disponibilidad.id
+  route_key          = "GET /disponibilidad"
+  target             = "integrations/${aws_apigatewayv2_integration.disponibilidad_public.id}"
+  authorization_type = "NONE"
+}
+
+resource "aws_cloudwatch_log_group" "api_gateway" {
+  for_each = toset([
+    "disponibilidad",
+    "reserva",
+    "cancelar",
+    "barbero",
+    "secretaria",
+    "administrador"
+  ])
+
+  name              = "/aws/apigateway/${local.name}-${each.key}"
+  kms_key_id        = aws_kms_key.app.arn
+  retention_in_days = 365
+}
+
 resource "aws_apigatewayv2_stage" "disponibilidad" {
   api_id      = aws_apigatewayv2_api.disponibilidad.id
   name        = "$default"
   auto_deploy = true
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_gateway["disponibilidad"].arn
+    format          = local.api_access_log_format
+  }
 }
 
 resource "aws_apigatewayv2_stage" "reserva" {
   api_id      = aws_apigatewayv2_api.reserva.id
   name        = "$default"
   auto_deploy = true
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_gateway["reserva"].arn
+    format          = local.api_access_log_format
+  }
 }
 
 resource "aws_apigatewayv2_stage" "cancelar" {
   api_id      = aws_apigatewayv2_api.cancelar.id
   name        = "$default"
   auto_deploy = true
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_gateway["cancelar"].arn
+    format          = local.api_access_log_format
+  }
 }
 
 resource "aws_apigatewayv2_stage" "barbero" {
   api_id      = aws_apigatewayv2_api.barbero.id
   name        = "$default"
   auto_deploy = true
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_gateway["barbero"].arn
+    format          = local.api_access_log_format
+  }
 }
 
 resource "aws_apigatewayv2_stage" "secretaria" {
   api_id      = aws_apigatewayv2_api.secretaria.id
   name        = "$default"
   auto_deploy = true
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_gateway["secretaria"].arn
+    format          = local.api_access_log_format
+  }
 }
 
 resource "aws_apigatewayv2_stage" "administrador" {
   api_id      = aws_apigatewayv2_api.administrador.id
   name        = "$default"
   auto_deploy = true
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_gateway["administrador"].arn
+    format          = local.api_access_log_format
+  }
 }
 
 resource "aws_lambda_permission" "api_gateway" {
@@ -370,4 +435,12 @@ resource "aws_lambda_permission" "api_gateway" {
   function_name = aws_lambda_function.functions[each.value.lambda_key].function_name
   principal     = "apigateway.amazonaws.com"
   source_arn    = "${each.value.execution_arn}/*/*"
+}
+
+resource "aws_lambda_permission" "api_gateway_disponibilidad_public" {
+  statement_id  = "AllowExecutionFromAPIGateway-disponibilidad-public"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.functions["consultar_disponibilidad"].function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.disponibilidad.execution_arn}/*/*"
 }

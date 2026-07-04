@@ -1,15 +1,24 @@
 resource "aws_sns_topic" "reservas" {
-  name = "${local.name}-reservas-topic"
+  name              = "${local.name}-reservas-topic"
+  kms_master_key_id = "alias/aws/sns"
 }
 
 resource "aws_sns_topic" "disponibilidad" {
-  name = "${local.name}-disponibilidad-topic"
+  name              = "${local.name}-disponibilidad-topic"
+  kms_master_key_id = "alias/aws/sns"
 }
 
 resource "aws_sqs_queue" "notificaciones" {
   name                       = "${local.name}-notificaciones-queue"
   message_retention_seconds  = 345600
+  sqs_managed_sse_enabled    = true
   visibility_timeout_seconds = 60
+}
+
+resource "aws_sqs_queue" "lambda_dlq" {
+  name                      = "${local.name}-lambda-dlq"
+  message_retention_seconds = 1209600
+  sqs_managed_sse_enabled   = true
 }
 
 resource "aws_sns_topic_subscription" "reserva_lambda" {

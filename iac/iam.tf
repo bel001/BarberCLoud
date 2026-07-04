@@ -55,7 +55,10 @@ resource "aws_iam_policy" "lambda_policy" {
           "sqs:ReceiveMessage",
           "sqs:SendMessage"
         ]
-        Resource = aws_sqs_queue.notificaciones.arn
+        Resource = [
+          aws_sqs_queue.notificaciones.arn,
+          aws_sqs_queue.lambda_dlq.arn
+        ]
       },
       {
         Effect = "Allow"
@@ -90,6 +93,24 @@ resource "aws_iam_policy" "lambda_policy" {
           "logs:PutLogEvents"
         ]
         Resource = "arn:aws:logs:${var.aws_region}:${data.aws_caller_identity.current.account_id}:log-group:/aws/lambda/${local.name}-*:*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "kms:Decrypt",
+          "kms:DescribeKey",
+          "kms:Encrypt",
+          "kms:GenerateDataKey"
+        ]
+        Resource = aws_kms_key.app.arn
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "xray:PutTelemetryRecords",
+          "xray:PutTraceSegments"
+        ]
+        Resource = "*"
       }
     ]
   })

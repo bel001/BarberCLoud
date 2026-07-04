@@ -5,16 +5,29 @@ data "archive_file" "lambda_package" {
 }
 
 resource "aws_lambda_function" "functions" {
+  #checkov:skip=CKV_AWS_117:Las Lambdas no usan VPC porque acceden a servicios administrados serverless sin recursos privados.
+  #checkov:skip=CKV_AWS_272:Code Signing se deja fuera para el despliegue academico; el paquete se controla desde CI y commits.
+
   for_each = local.lambda_functions
 
-  function_name    = "${local.name}-${replace(each.key, "_", "-")}"
-  role             = aws_iam_role.lambda_role.arn
-  handler          = each.value
-  runtime          = "nodejs20.x"
-  filename         = data.archive_file.lambda_package.output_path
-  source_code_hash = data.archive_file.lambda_package.output_base64sha256
-  timeout          = 15
-  memory_size      = 256
+  function_name                  = "${local.name}-${replace(each.key, "_", "-")}"
+  role                           = aws_iam_role.lambda_role.arn
+  handler                        = each.value
+  runtime                        = "nodejs20.x"
+  filename                       = data.archive_file.lambda_package.output_path
+  source_code_hash               = data.archive_file.lambda_package.output_base64sha256
+  timeout                        = 15
+  memory_size                    = 256
+  kms_key_arn                    = aws_kms_key.app.arn
+  reserved_concurrent_executions = 10
+
+  tracing_config {
+    mode = "Active"
+  }
+
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
+  }
 
   environment {
     variables = {
@@ -37,23 +50,38 @@ resource "aws_cloudwatch_log_group" "lambda" {
   for_each = local.lambda_functions
 
   name              = "/aws/lambda/${local.name}-${replace(each.key, "_", "-")}"
-  retention_in_days = 14
+  kms_key_id        = aws_kms_key.app.arn
+  retention_in_days = 365
 }
 
 resource "aws_cloudwatch_log_group" "post_confirm_cliente" {
   name              = "/aws/lambda/${local.name}-post-confirm-cliente"
-  retention_in_days = 14
+  kms_key_id        = aws_kms_key.app.arn
+  retention_in_days = 365
 }
 
 resource "aws_lambda_function" "post_confirm_cliente" {
-  function_name    = "${local.name}-post-confirm-cliente"
-  role             = aws_iam_role.lambda_role.arn
-  handler          = "src/handlers/postConfirmCliente.handler"
-  runtime          = "nodejs20.x"
-  filename         = data.archive_file.lambda_package.output_path
-  source_code_hash = data.archive_file.lambda_package.output_base64sha256
-  timeout          = 15
-  memory_size      = 256
+  #checkov:skip=CKV_AWS_117:La Lambda de confirmacion Cognito no requiere VPC para escribir en DynamoDB.
+  #checkov:skip=CKV_AWS_272:Code Signing se deja fuera para el despliegue academico; el paquete se controla desde CI y commits.
+
+  function_name                  = "${local.name}-post-confirm-cliente"
+  role                           = aws_iam_role.lambda_role.arn
+  handler                        = "src/handlers/postConfirmCliente.handler"
+  runtime                        = "nodejs20.x"
+  filename                       = data.archive_file.lambda_package.output_path
+  source_code_hash               = data.archive_file.lambda_package.output_base64sha256
+  timeout                        = 15
+  memory_size                    = 256
+  kms_key_arn                    = aws_kms_key.app.arn
+  reserved_concurrent_executions = 10
+
+  tracing_config {
+    mode = "Active"
+  }
+
+  dead_letter_config {
+    target_arn = aws_sqs_queue.lambda_dlq.arn
+  }
 
   environment {
     variables = {
