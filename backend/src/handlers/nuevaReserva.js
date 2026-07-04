@@ -1,89 +1,39 @@
 import { v4 as uuid } from "uuid";
-import { requireRole, getUser } from "../lib/auth.js";
-import { getItem, transactWrite } from "../lib/dynamodb.js";
+import { requireRole } from "../lib/auth.js";
+import * as repository from "../lib/dynamodb.js";
 import { audit } from "../lib/audit.js";
 import { publishReservationEvent } from "../lib/notifications.js";
 import { created, badRequest, serverError } from "../lib/response.js";
+import { ServiceError, isConflictError } from "../services/errors.js";
+import { createReservationService } from "../services/reservationService.js";
 
 const tableName = process.env.TABLE_NAME || "barbercloud-local";
 
-export async function handler(event) {
-  try {
-    requireRole(event, ["CLIENTE"]);
+const reservationService = createReservationService({
+  repository,
+  auditLog: audit,
+  publishReservationEvent,
+  idGenerator: uuid,
+  tableName
+});
 
-    const user = getUser(event);
-    const body = JSON.parse(event.body || "{}");
-    const { servicioId, barberoId, fecha, hora } = body;
-
-    if (!servicioId || !barberoId || !fecha || !hora) {
-      return badRequest("servicioId, barberoId, fecha y hora son obligatorios");
-    }
-
-    const reservaId = `res_${uuid()}`;
-    const now = new Date().toISOString();
-    const servicio = await getItem(`SERVICIO#${servicioId}`, "PROFILE");
-
-    const reservaCliente = {
-      pk: `CLIENTE#${user.sub}`,
-      sk: `RESERVA#${fecha}#${hora}`,
-      tipo: "RESERVA",
-      reservaId,
-      clienteId: user.sub,
-      clienteNombre: user.name,
-      clienteCorreo: user.email,
-      servicioId,
-      servicioNombre: servicio?.nombre || servicioId,
-      precio: Number(servicio?.precio || 0),
-      barberoId,
-      fecha,
-      hora,
-      origen: "ONLINE",
-      estado: "CONFIRMADA",
-      creadoPor: "CLIENTE",
-      creadoEn: now
-    };
-
-    const reservaAgenda = {
-      ...reservaCliente,
-      pk: `BARBERO#${barberoId}`,
-      sk: `RESERVA#${fecha}#${hora}`
-    };
-
-    await transactWrite([
-      {
-        Put: {
-          TableName: tableName,
-          Item: reservaCliente,
-          ConditionExpression: "attribute_not_exists(pk) OR estado = :cancelada",
-          ExpressionAttributeValues: {
-            ":cancelada": "CANCELADA"
-          }
-        }
-      },
-      {
-        Put: {
-          TableName: tableName,
-          Item: reservaAgenda,
-          ConditionExpression: "attribute_not_exists(pk) OR estado = :cancelada",
-          ExpressionAttributeValues: {
-            ":cancelada": "CANCELADA"
-          }
-        }
+export function createNuevaReservaHandler(service) {
+  return async function nuevaReservaHandler(event) {
+    try {
+      requireRole(event, ["CLIENTE"]);
+      return created(await service.createOnlineReservation(event));
+    } catch (error) {
+      if (error instanceof ServiceError) {
+        return badRequest(error.message);
       }
-    ]);
 
-    await audit(event, "RESERVA_CREAR", "OK", { reservaId, barberoId, fecha, hora });
-    await publishReservationEvent("RESERVA_CREADA", reservaCliente);
+      if (isConflictError(error)) {
+        return badRequest("Horario no disponible");
+      }
 
-    return created({
-      message: "Reserva creada correctamente",
-      reservaId
-    });
-  } catch (error) {
-    if (error.name === "TransactionCanceledException") {
-      return badRequest("Horario no disponible");
+      return serverError(error);
     }
-
-    return serverError(error);
-  }
+  };
 }
+
+export const handler = createNuevaReservaHandler(reservationService);
