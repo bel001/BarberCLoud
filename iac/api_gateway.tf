@@ -3,7 +3,7 @@ locals {
     allow_credentials = false
     allow_headers     = ["authorization", "content-type"]
     allow_methods     = ["GET", "POST", "OPTIONS"]
-    allow_origins     = ["*"]
+    allow_origins     = var.allowed_origins
     max_age           = 3600
   }
 
