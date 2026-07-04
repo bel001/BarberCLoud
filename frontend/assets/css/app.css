@@ -66,6 +66,19 @@ nav {
   color: var(--muted);
 }
 
+.nav-button {
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  padding: 0;
+}
+
+.nav-button:hover {
+  opacity: .82;
+  transform: none;
+}
+
 .nav-cta {
   color: #100b06;
   background: var(--gold);

@@ -8,7 +8,7 @@
 <body>
 <header class="topbar">
   <div class="brand"><span class="brand-mark">BC</span><span>BarberCloud</span></div>
-  <nav><a href="#" onclick="AUTH.logout()">Salir</a></nav>
+  <nav><button type="button" class="nav-button" onclick="AUTH.logout()">Salir</button></nav>
 </header>
 <main class="dashboard">
   <section class="dashboard-card">
@@ -19,9 +19,9 @@
   <section class="dashboard-card">
     <h2>Servicios y reglas</h2>
     <form id="formServicio">
-      <label>Nombre</label>
+      <label for="nombreServicio">Nombre</label>
       <input id="nombreServicio" required value="Fade premium">
-      <label>Precio</label>
+      <label for="precioServicio">Precio</label>
       <input id="precioServicio" type="number" min="1" required value="50">
       <button class="btn-primary" type="submit">Guardar servicio</button>
     </form>
@@ -30,17 +30,17 @@
   <section class="dashboard-card">
     <h2>Crear usuario interno</h2>
     <form id="formPersonal">
-      <label>Nombre</label>
+      <label for="nombrePersonal">Nombre</label>
       <input id="nombrePersonal" required value="Nuevo Barbero">
-      <label>Correo</label>
+      <label for="emailPersonal">Correo</label>
       <input id="emailPersonal" type="email" required placeholder="nuevo@barbercloud.com">
-      <label>Rol</label>
+      <label for="rolPersonal">Rol</label>
       <select id="rolPersonal">
         <option value="BARBERO">BARBERO</option>
         <option value="SECRETARIA">SECRETARIA</option>
         <option value="ADMIN">ADMIN</option>
       </select>
-      <label>Contraseña temporal</label>
+      <label for="passwordPersonal">Contraseña temporal</label>
       <input id="passwordPersonal" type="password" required value="BarberCloud2026!">
       <button class="btn-primary" type="submit">Crear usuario</button>
     </form>

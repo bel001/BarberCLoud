@@ -8,7 +8,7 @@
 <body>
 <header class="topbar">
   <div class="brand"><span class="brand-mark">BC</span><span>BarberCloud</span></div>
-  <nav><a href="#" onclick="AUTH.logout()">Salir</a></nav>
+  <nav><button type="button" class="nav-button" onclick="AUTH.logout()">Salir</button></nav>
 </header>
 <main class="dashboard">
   <section class="dashboard-card">
@@ -19,11 +19,11 @@
   <section class="dashboard-card">
     <h2>Insumos de estación</h2>
     <form id="formInsumo">
-      <label>Insumo</label>
+      <label for="insumoId">Insumo</label>
       <input id="insumoId" required value="gel">
-      <label>Nombre</label>
+      <label for="nombreInsumo">Nombre</label>
       <input id="nombreInsumo" required value="Gel fijador">
-      <label>Cantidad</label>
+      <label for="cantidadInsumo">Cantidad</label>
       <input id="cantidadInsumo" type="number" min="1" required value="1">
       <button class="btn-primary" type="submit">Registrar consumo</button>
     </form>

@@ -166,7 +166,7 @@ export function createReservationService({
       }
 
       const agenda = await repository.queryByPk(`BARBERO#${barberoId}`);
-      const conflicto = agenda.find(item =>
+      const conflicto = agenda.some(item =>
         item.fecha === fecha &&
         item.hora === hora &&
         item.estado !== "CANCELADA"
