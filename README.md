@@ -23,6 +23,22 @@ Backend:
 
 http://localhost:3001/health
 
+## Pruebas automatizadas
+
+Comandos:
+
+```bash
+npm -C backend test
+npm -C backend test:coverage
+```
+
+El backend usa Vitest con dos enfoques:
+
+- Unitarias: prueban funciones puras de disponibilidad, finanzas y validaciones sin depender de AWS.
+- Integracion con mocks: prueban el flujo entre servicios y handlers usando repositorios, auditoria y notificaciones simuladas.
+
+Las pruebas siguen Arrange / Act / Assert para dejar claro que se prepara el escenario, se ejecuta la accion y se valida el resultado.
+
 ## Cuentas demo
 
 cliente@barbercloud.com      / BarberCloud2026!

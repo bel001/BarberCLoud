@@ -20,6 +20,19 @@ jobs:
       - name: Descargar codigo
         uses: actions/checkout@v4
 
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias backend
+        run: npm -C backend ci
+
+      - name: Ejecutar pruebas backend
+        run: npm -C backend test
+
       - name: Configurar Terraform
         uses: hashicorp/setup-terraform@v3
         with:
