@@ -1,10 +1,10 @@
 locals {
-  cognito_domain_prefix     = var.cognito_domain_prefix != "" ? var.cognito_domain_prefix : "${local.name}-${random_id.suffix.hex}"
-  frontend_https_url        = "https://${aws_cloudfront_distribution.frontend.domain_name}"
-  local_callback_url        = var.is_production ? [] : ["http://localhost:8080/callback.html"]
-  local_logout_url          = var.is_production ? [] : ["http://localhost:8080/index.html"]
-  all_callback_urls         = concat(local.local_callback_url, [local.frontend_https_url == "https://" ? "" : "${local.frontend_https_url}/callback.html"])
-  all_logout_urls           = concat(local.local_logout_url, [local.frontend_https_url == "https://" ? "" : "${local.frontend_https_url}/index.html"])
+  cognito_domain_prefix = var.cognito_domain_prefix != "" ? var.cognito_domain_prefix : "${local.name}-${random_id.suffix.hex}"
+  frontend_https_url    = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+  local_callback_url    = var.is_production ? [] : ["http://localhost:8080/callback.html"]
+  local_logout_url      = var.is_production ? [] : ["http://localhost:8080/index.html"]
+  all_callback_urls     = concat(local.local_callback_url, [local.frontend_https_url == "https://" ? "" : "${local.frontend_https_url}/callback.html"])
+  all_logout_urls       = concat(local.local_logout_url, [local.frontend_https_url == "https://" ? "" : "${local.frontend_https_url}/index.html"])
 }
 
 resource "aws_cognito_user_pool" "users" {
