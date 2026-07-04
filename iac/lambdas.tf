@@ -17,9 +17,9 @@ resource "aws_lambda_function" "functions" {
   filename                       = data.archive_file.lambda_package.output_path
   source_code_hash               = data.archive_file.lambda_package.output_base64sha256
   timeout                        = 15
-  memory_size                    = 256
+  memory_size                    = var.lambda_memory_size
   kms_key_arn                    = aws_kms_key.app.arn
-  reserved_concurrent_executions = 10
+  reserved_concurrent_executions = var.lambda_reserved_concurrent
 
   tracing_config {
     mode = "Active"
@@ -71,9 +71,9 @@ resource "aws_lambda_function" "post_confirm_cliente" {
   filename                       = data.archive_file.lambda_package.output_path
   source_code_hash               = data.archive_file.lambda_package.output_base64sha256
   timeout                        = 15
-  memory_size                    = 256
+  memory_size                    = var.lambda_memory_size
   kms_key_arn                    = aws_kms_key.app.arn
-  reserved_concurrent_executions = 10
+  reserved_concurrent_executions = var.lambda_reserved_concurrent
 
   tracing_config {
     mode = "Active"
