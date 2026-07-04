@@ -14,6 +14,12 @@ const API = {
   async get(path, token = null) {
     const headers = token ? { Authorization: `Bearer ${token}` } : {};
     const response = await fetch(`${this.baseFor(path)}${path}`, { headers });
+
+    if (!response.ok) {
+      const error = await response.text().catch(() => "Error de conexion");
+      throw new Error(`GET ${path} failed: ${response.status} ${error}`);
+    }
+
     return response.json();
   },
 
@@ -31,6 +37,11 @@ const API = {
       headers,
       body: JSON.stringify(payload)
     });
+
+    if (!response.ok) {
+      const error = await response.text().catch(() => "Error de conexion");
+      throw new Error(`POST ${path} failed: ${response.status} ${error}`);
+    }
 
     return response.json();
   }

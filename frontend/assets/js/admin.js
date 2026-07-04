@@ -1,13 +1,25 @@
 const sessionAdmin = AUTH.requireSession();
 
+// Escapar HTML para prevenir XSS
+const escapeHtml = (str) => {
+  if (str == null) return "";
+  const s = String(str);
+  return s
+    .replace(/&/g, "&")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
+    .replace(/"/g, """)
+    .replace(/'/g, "'");
+};
+
 async function cargarReporte() {
   const data = await API.get("/admin/reporte-financiero", sessionAdmin.token);
 
   document.getElementById("reporte").innerHTML = `
-    <div class="row-item">Total reservas: ${data.totalReservas || 0}</div>
-    <div class="row-item">Reservas online: ${data.online || 0}</div>
-    <div class="row-item">Reservas presenciales: ${data.presenciales || 0}</div>
-    <div class="row-item">Ingresos estimados: S/ ${data.ingresosEstimados || 0}</div>
+    <div class="row-item">Total reservas: ${escapeHtml(data.totalReservas || 0)}</div>
+    <div class="row-item">Reservas online: ${escapeHtml(data.online || 0)}</div>
+    <div class="row-item">Reservas presenciales: ${escapeHtml(data.presenciales || 0)}</div>
+    <div class="row-item">Ingresos estimados: S/ ${escapeHtml(data.ingresosEstimados || 0)}</div>
   `;
 }
 
@@ -16,7 +28,7 @@ async function cargarServicios() {
   const servicios = data.servicios || [];
 
   document.getElementById("servicios").innerHTML = servicios.length
-    ? servicios.map(item => `<div class="row-item">${item.nombre}: S/ ${item.precio}</div>`).join("")
+    ? servicios.map(item => `<div class="row-item">${escapeHtml(item.nombre)}: S/ ${escapeHtml(item.precio)}</div>`).join("")
     : "<div class='row-item'>No hay servicios configurados.</div>";
 }
 

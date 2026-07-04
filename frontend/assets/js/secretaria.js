@@ -1,5 +1,17 @@
 const sessionSecretaria = AUTH.requireSession();
 
+// Escapar HTML para prevenir XSS
+const escapeHtml = (str) => {
+  if (str == null) return "";
+  const s = String(str);
+  return s
+    .replace(/&/g, "&")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
+    .replace(/"/g, """)
+    .replace(/'/g, "'");
+};
+
 async function registrarCitaPresencial(event) {
   event.preventDefault();
 
@@ -22,7 +34,7 @@ async function cargarPOS() {
   const data = await API.get("/secretaria/pos", sessionSecretaria.token);
   document.getElementById("pos").innerHTML = `
     <div class="row-item">Total caja: S/ ${data.total || 0}</div>
-    ${(data.ventas || []).map(venta => `<div class="row-item">${venta.concepto}: S/ ${venta.total}</div>`).join("")}
+    ${(data.ventas || []).map(venta => `<div class="row-item">${escapeHtml(venta.concepto)}: S/ ${escapeHtml(venta.total)}</div>`).join("")}
   `;
 }
 
@@ -40,7 +52,7 @@ async function cargarInventario() {
   const inventario = data.inventario || [];
 
   document.getElementById("inventario").innerHTML = inventario.length
-    ? inventario.map(item => `<div class="row-item">${item.nombre}: ${item.stock} unidades</div>`).join("")
+    ? inventario.map(item => `<div class="row-item">${escapeHtml(item.nombre)}: ${escapeHtml(item.stock)} unidades</div>`).join("")
     : "<div class='row-item'>No hay productos registrados.</div>";
 }
 

@@ -1,11 +1,23 @@
 const sessionBarbero = AUTH.requireSession();
 
+// Escapar HTML para prevenir XSS
+const escapeHtml = (str) => {
+  if (str == null) return "";
+  const s = String(str);
+  return s
+    .replace(/&/g, "&")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
+    .replace(/"/g, """)
+    .replace(/'/g, "'");
+};
+
 async function cargarAgenda() {
   const data = await API.get("/barbero/agenda", sessionBarbero.token);
   const citas = data.citas || [];
 
   document.getElementById("agenda").innerHTML = citas.length
-    ? citas.map(cita => `<div class="row-item">${cita.fecha} ${cita.hora} - ${cita.clienteNombre}</div>`).join("")
+    ? citas.map(cita => `<div class="row-item">${escapeHtml(cita.fecha)} ${escapeHtml(cita.hora)} - ${escapeHtml(cita.clienteNombre)}</div>`).join("")
     : "<div class='row-item'>No hay citas asignadas.</div>";
 }
 
@@ -14,7 +26,7 @@ async function cargarInsumos() {
   const insumos = data.insumos || [];
 
   document.getElementById("insumos").innerHTML = insumos.length
-    ? insumos.map(item => `<div class="row-item">${item.nombre}: ${item.cantidad}</div>`).join("")
+    ? insumos.map(item => `<div class="row-item">${escapeHtml(item.nombre)}: ${escapeHtml(item.cantidad)}</div>`).join("")
     : "<div class='row-item'>No hay consumos registrados.</div>";
 }
 

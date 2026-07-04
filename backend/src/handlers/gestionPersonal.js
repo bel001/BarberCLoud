@@ -1,6 +1,7 @@
 import {
   AdminAddUserToGroupCommand,
   AdminCreateUserCommand,
+  AdminDeleteUserCommand,
   AdminSetUserPasswordCommand,
   CognitoIdentityProviderClient
 } from "@aws-sdk/client-cognito-identity-provider";
@@ -26,6 +27,8 @@ export async function handler(event) {
     const userPoolId = process.env.USER_POOL_ID;
     const userId = body.userId || `${rol.toLowerCase()}_${uuid()}`;
 
+    let cognitoUserCreated = false;
+
     if (userPoolId) {
       await cognito.send(new AdminCreateUserCommand({
         UserPoolId: userPoolId,
@@ -38,18 +41,29 @@ export async function handler(event) {
         ]
       }));
 
-      await cognito.send(new AdminSetUserPasswordCommand({
-        UserPoolId: userPoolId,
-        Username: email,
-        Password: password,
-        Permanent: true
-      }));
+      cognitoUserCreated = true;
 
-      await cognito.send(new AdminAddUserToGroupCommand({
-        UserPoolId: userPoolId,
-        Username: email,
-        GroupName: rol
-      }));
+      try {
+        await cognito.send(new AdminSetUserPasswordCommand({
+          UserPoolId: userPoolId,
+          Username: email,
+          Password: password,
+          Permanent: true
+        }));
+
+        await cognito.send(new AdminAddUserToGroupCommand({
+          UserPoolId: userPoolId,
+          Username: email,
+          GroupName: rol
+        }));
+      } catch (cognitoError) {
+        // Compensar: eliminar usuario de Cognito si falla alguna operacion posterior
+        await cognito.send(new AdminDeleteUserCommand({
+          UserPoolId: userPoolId,
+          Username: email
+        }));
+        throw cognitoError;
+      }
     }
 
     const item = {

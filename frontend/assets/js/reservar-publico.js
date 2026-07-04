@@ -1,19 +1,34 @@
+// Escapar HTML para prevenir XSS
+const escapeHtml = (str) => {
+  if (str == null) return "";
+  const s = String(str);
+  return s
+    .replace(/&/g, "&")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
+    .replace(/"/g, """)
+    .replace(/'/g, "'");
+};
+
 async function cargarDisponibilidadPublica() {
   const data = await API.get("/disponibilidad");
 
   document.getElementById("servicioId").innerHTML = data.servicios
-    .map(servicio => `<option value="${servicio.id}">${servicio.nombre} - S/ ${servicio.precio}</option>`)
+    .map(servicio => `<option value="${escapeHtml(servicio.id)}">${escapeHtml(servicio.nombre)} - S/ ${escapeHtml(servicio.precio)}</option>`)
     .join("");
 
   document.getElementById("barberoId").innerHTML = data.barberos
-    .map(barbero => `<option value="${barbero.id}">${barbero.nombre}</option>`)
+    .map(barbero => `<option value="${escapeHtml(barbero.id)}">${escapeHtml(barbero.nombre)}</option>`)
     .join("");
 
   document.getElementById("hora").innerHTML = data.horarios
-    .map(hora => `<option value="${hora}">${hora}</option>`)
+    .map(hora => `<option value="${escapeHtml(hora)}">${escapeHtml(hora)}</option>`)
     .join("");
 
-  document.getElementById("fecha").valueAsDate = new Date();
+  const fechaEl = document.getElementById("fecha");
+  if (fechaEl) {
+    fechaEl.valueAsDate = new Date();
+  }
 }
 
 async function confirmarReservaPublica(event) {

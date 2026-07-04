@@ -1,5 +1,17 @@
 const session = AUTH.requireSession();
 
+// Escapar HTML para prevenir XSS
+const escapeHtml = (str) => {
+  if (str == null) return "";
+  const s = String(str);
+  return s
+    .replace(/&/g, "&")
+    .replace(/</g, "<")
+    .replace(/>/g, ">")
+    .replace(/"/g, """)
+    .replace(/'/g, "'");
+};
+
 async function cargarReservas() {
   if (!session) return;
 
@@ -13,10 +25,10 @@ async function cargarReservas() {
 
   contenedor.innerHTML = data.map(item => `
     <div class="row-item">
-      <strong>${item.fecha} ${item.hora}</strong><br>
-      Servicio: ${item.servicioId}<br>
-      Estado: ${item.estado}<br>
-      ${item.estado !== "CANCELADA" ? `<button class="btn-secondary" onclick="cancelarReserva('${item.reservaId}')">Cancelar</button>` : ""}
+      <strong>${escapeHtml(item.fecha)} ${escapeHtml(item.hora)}</strong><br>
+      Servicio: ${escapeHtml(item.servicioId)}<br>
+      Estado: ${escapeHtml(item.estado)}<br>
+      ${item.estado !== "CANCELADA" ? `<button class="btn-secondary" onclick="cancelarReserva('${escapeHtml(item.reservaId)}')">Cancelar</button>` : ""}
     </div>
   `).join("");
 }

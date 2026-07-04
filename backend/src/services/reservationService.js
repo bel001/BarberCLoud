@@ -22,14 +22,18 @@ export function validatePresentialReservationInput(body) {
 }
 
 function buildReservationWrites({ reservaCliente, barberoId, fecha, hora, tableName }) {
+  const reservaId = reservaCliente.reservaId;
+
   return [
     {
       Put: {
         TableName: tableName,
         Item: reservaCliente,
-        ConditionExpression: "attribute_not_exists(pk) OR estado = :cancelada",
+        // Solo permite escribir si no existe o si esta cancelada Y es la misma reserva (rebooking)
+        ConditionExpression: "attribute_not_exists(pk) OR (estado = :cancelada AND reservaId = :reservaId)",
         ExpressionAttributeValues: {
-          ":cancelada": "CANCELADA"
+          ":cancelada": "CANCELADA",
+          ":reservaId": reservaId
         }
       }
     },
@@ -41,9 +45,11 @@ function buildReservationWrites({ reservaCliente, barberoId, fecha, hora, tableN
           pk: `BARBERO#${barberoId}`,
           sk: `RESERVA#${fecha}#${hora}`
         },
-        ConditionExpression: "attribute_not_exists(pk) OR estado = :cancelada",
+        // Previene double booking: solo permite si el slot no existe, esta cancelado, o es la misma reserva
+        ConditionExpression: "attribute_not_exists(pk) OR (estado = :cancelada AND reservaId = :reservaId)",
         ExpressionAttributeValues: {
-          ":cancelada": "CANCELADA"
+          ":cancelada": "CANCELADA",
+          ":reservaId": reservaId
         }
       }
     }
@@ -128,7 +134,12 @@ export function createReservationService({
       const writes = [{
         Put: {
           TableName: tableName,
-          Item: reservaCancelada
+          Item: reservaCancelada,
+          // Prevenir sobreescritura de una reserva ya cancelada por otro proceso
+          ConditionExpression: "attribute_not_exists(pk) OR estado <> :cancelada",
+          ExpressionAttributeValues: {
+            ":cancelada": "CANCELADA"
+          }
         }
       }];
 
@@ -140,6 +151,11 @@ export function createReservationService({
               ...reservaCancelada,
               pk: `BARBERO#${reserva.barberoId}`,
               sk: `RESERVA#${reserva.fecha}#${reserva.hora}`
+            },
+            ConditionExpression: "attribute_not_exists(pk) OR (estado <> :cancelada AND reservaId = :reservaId)",
+            ExpressionAttributeValues: {
+              ":cancelada": "CANCELADA",
+              ":reservaId": reservaId
             }
           }
         });
@@ -165,6 +181,7 @@ export function createReservationService({
         throw new ServiceError("El cliente no esta registrado. Debe crear una cuenta antes de agendar una cita presencial.");
       }
 
+      // Verificacion anticipada para mejor UX (el transactWrite garantiza atomicidad real)
       const agenda = await repository.queryByPk(`BARBERO#${barberoId}`);
       const conflicto = agenda.some(item =>
         item.fecha === fecha &&
@@ -201,6 +218,7 @@ export function createReservationService({
         creadoEn: now
       };
 
+      // El transactWrite garantiza atomicidad: si hay conflicto, toda la operacion falla
       await repository.transactWrite(buildReservationWrites({ reservaCliente, barberoId, fecha, hora, tableName }));
       await auditLog(event, "RESERVA_PRESENCIAL_CREAR", "OK", { reservaId, clienteCorreo, barberoId, fecha, hora });
       await publishReservationEvent("RESERVA_CREADA", reservaCliente);
