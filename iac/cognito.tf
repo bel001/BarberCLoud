@@ -1,6 +1,10 @@
 locals {
-  cognito_domain_prefix = var.cognito_domain_prefix != "" ? var.cognito_domain_prefix : "${local.name}-${random_id.suffix.hex}"
-  frontend_https_url    = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+  cognito_domain_prefix     = var.cognito_domain_prefix != "" ? var.cognito_domain_prefix : "${local.name}-${random_id.suffix.hex}"
+  frontend_https_url        = "https://${aws_cloudfront_distribution.frontend.domain_name}"
+  local_callback_url        = var.is_production ? [] : ["http://localhost:8080/callback.html"]
+  local_logout_url          = var.is_production ? [] : ["http://localhost:8080/index.html"]
+  all_callback_urls         = concat(local.local_callback_url, [local.frontend_https_url == "https://" ? "" : "${local.frontend_https_url}/callback.html"])
+  all_logout_urls           = concat(local.local_logout_url, [local.frontend_https_url == "https://" ? "" : "${local.frontend_https_url}/index.html"])
 }
 
 resource "aws_cognito_user_pool" "users" {
@@ -32,8 +36,8 @@ resource "aws_cognito_user_pool_client" "web_client" {
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]
   allowed_oauth_scopes                 = ["email", "openid", "profile"]
-  callback_urls                        = ["http://localhost:8080/callback.html", "${local.frontend_https_url}/callback.html"]
-  logout_urls                          = ["http://localhost:8080/index.html", "${local.frontend_https_url}/index.html"]
+  callback_urls                        = local.all_callback_urls
+  logout_urls                          = local.all_logout_urls
   supported_identity_providers         = ["COGNITO"]
   explicit_auth_flows                  = ["ALLOW_USER_SRP_AUTH", "ALLOW_REFRESH_TOKEN_AUTH", "ALLOW_USER_PASSWORD_AUTH"]
 
