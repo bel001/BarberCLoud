@@ -39,6 +39,13 @@ El backend usa Vitest con dos enfoques:
 
 Las pruebas siguen Arrange / Act / Assert para dejar claro que se prepara el escenario, se ejecuta la accion y se valida el resultado.
 
+La cobertura se genera en `backend/coverage/lcov.info` para SonarQube Cloud. El proyecto exige umbrales minimos en Vitest:
+
+- 80% statements.
+- 70% branches.
+- 80% functions.
+- 80% lines.
+
 ## Cuentas demo
 
 cliente@barbercloud.com      / BarberCloud2026!

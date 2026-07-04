@@ -6,6 +6,7 @@ on:
       - main
       - develop
       - feature/sonarqube-cloud
+      - feature/aws-diagrama-completo
   pull_request:
     branches:
       - main
@@ -21,6 +22,19 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias backend
+        run: npm -C backend ci
+
+      - name: Ejecutar pruebas con cobertura
+        run: npm -C backend run test:coverage
 
       - name: Ejecutar analisis SonarQube Cloud
         uses: SonarSource/sonarqube-scan-action@v6

@@ -30,8 +30,8 @@ jobs:
       - name: Instalar dependencias backend
         run: npm -C backend ci
 
-      - name: Ejecutar pruebas backend
-        run: npm -C backend test
+      - name: Ejecutar pruebas backend con cobertura
+        run: npm -C backend run test:coverage
 
       - name: Configurar Terraform
         uses: hashicorp/setup-terraform@v3
