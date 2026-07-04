@@ -25,3 +25,27 @@ variable "cognito_domain_prefix" {
   description = "Prefijo opcional para el dominio Hosted UI de Cognito. Debe ser globalmente unico."
   default     = ""
 }
+
+variable "is_production" {
+  type        = bool
+  description = "Si es true, se omiten URLs de desarrollo localhost"
+  default     = false
+}
+
+variable "lambda_memory_size" {
+  type        = number
+  description = "Memoria en MB para todas las funciones Lambda"
+  default     = 256
+}
+
+variable "lambda_reserved_concurrent" {
+  type        = number
+  description = "Ejecuciones concurrentes reservadas para todas las Lambdas"
+  default     = 5
+}
+
+variable "allowed_origins" {
+  type        = list(string)
+  description = "Lista de origenes permitidos para CORS. Use ['*'] en desarrollo local."
+  default     = ["*"]
+}
