@@ -55,6 +55,57 @@ describe("reservationService integration con mocks", () => {
     }));
   });
 
+  it("crea reserva online usando defaults si el servicio no existe", async () => {
+    // Arrange
+    const repository = createRepositoryMock({
+      getItem: vi.fn().mockResolvedValue(undefined)
+    });
+    const { service } = createService({ repository });
+    const event = lambdaEvent({
+      method: "POST",
+      body: {
+        servicioId: "servicio-desconocido",
+        barberoId: "barbero_carlos",
+        fecha: "2026-07-10",
+        hora: "10:00"
+      }
+    });
+
+    // Act
+    await service.createOnlineReservation(event);
+
+    // Assert
+    const writes = repository.transactWrite.mock.calls[0][0];
+    expect(writes[0].Put.Item).toMatchObject({
+      servicioNombre: "servicio-desconocido",
+      precio: 0
+    });
+  });
+
+  it("rechaza reserva online sin campos obligatorios", async () => {
+    // Arrange
+    const { service } = createService();
+    const event = lambdaEvent({ method: "POST", body: { servicioId: "corte-clasico" } });
+
+    // Act
+    const action = () => service.createOnlineReservation(event);
+
+    // Assert
+    await expect(action).rejects.toThrow("servicioId, barberoId, fecha y hora son obligatorios");
+  });
+
+  it("rechaza reserva online cuando el evento no trae body", async () => {
+    // Arrange
+    const { service } = createService();
+    const event = lambdaEvent({ method: "POST" });
+
+    // Act
+    const action = () => service.createOnlineReservation(event);
+
+    // Assert
+    await expect(action).rejects.toThrow("servicioId, barberoId, fecha y hora son obligatorios");
+  });
+
   it("responde horario no disponible si DynamoDB simula conflicto", async () => {
     // Arrange
     const repository = createRepositoryMock({
@@ -117,6 +168,75 @@ describe("reservationService integration con mocks", () => {
     }));
   });
 
+  it("rechaza cancelacion sin reservaId", async () => {
+    // Arrange
+    const { service } = createService();
+    const event = lambdaEvent({ method: "POST" });
+
+    // Act
+    const action = () => service.cancelReservation(event);
+
+    // Assert
+    await expect(action).rejects.toThrow("reservaId es obligatorio");
+  });
+
+  it("rechaza cancelacion si la reserva no pertenece al cliente", async () => {
+    // Arrange
+    const repository = createRepositoryMock({
+      queryByPk: vi.fn().mockResolvedValue([{ tipo: "RESERVA", reservaId: "otra" }])
+    });
+    const { service } = createService({ repository });
+    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" } });
+
+    // Act
+    const action = () => service.cancelReservation(event);
+
+    // Assert
+    await expect(action).rejects.toThrow("Reserva no encontrada para este cliente");
+  });
+
+  it("rechaza cancelacion si la reserva ya estaba cancelada", async () => {
+    // Arrange
+    const repository = createRepositoryMock({
+      queryByPk: vi.fn().mockResolvedValue([
+        { tipo: "RESERVA", reservaId: "res_123", estado: "CANCELADA" }
+      ])
+    });
+    const { service } = createService({ repository });
+    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" } });
+
+    // Act
+    const action = () => service.cancelReservation(event);
+
+    // Assert
+    await expect(action).rejects.toThrow("La reserva ya se encuentra cancelada");
+  });
+
+  it("cancela reserva sin copia de agenda cuando no tiene barbero", async () => {
+    // Arrange
+    const repository = createRepositoryMock({
+      queryByPk: vi.fn().mockResolvedValue([
+        {
+          tipo: "RESERVA",
+          reservaId: "res_123",
+          pk: "CLIENTE#cliente-demo",
+          sk: "RESERVA#2026-07-10#10:00",
+          fecha: "2026-07-10",
+          hora: "10:00",
+          estado: "CONFIRMADA"
+        }
+      ])
+    });
+    const { service } = createService({ repository });
+    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" } });
+
+    // Act
+    await service.cancelReservation(event);
+
+    // Assert
+    expect(repository.transactWrite.mock.calls[0][0]).toHaveLength(1);
+  });
+
   it("secretaria crea cita presencial para cliente existente", async () => {
     // Arrange
     const repository = createRepositoryMock({
@@ -157,6 +277,66 @@ describe("reservationService integration con mocks", () => {
     expect(publishReservationEvent).toHaveBeenCalledWith("RESERVA_CREADA", expect.objectContaining({
       origen: "PRESENCIAL"
     }));
+  });
+
+  it("secretaria crea cita presencial con defaults de servicio", async () => {
+    // Arrange
+    const repository = createRepositoryMock({
+      findClienteByEmail: vi.fn().mockResolvedValue({
+        clienteId: "cliente-uno",
+        nombre: "Cliente Uno",
+        email: "cliente@demo.local"
+      }),
+      queryByPk: vi.fn().mockResolvedValue([{ fecha: "2026-07-10", hora: "10:00", estado: "CANCELADA" }]),
+      getItem: vi.fn().mockResolvedValue(undefined)
+    });
+    const { service } = createService({ repository });
+    const event = lambdaEvent({
+      method: "POST",
+      role: "SECRETARIA",
+      user: { email: "secretaria@demo.local", sub: "secretaria-uno" },
+      body: {
+        clienteCorreo: "cliente@demo.local",
+        servicioId: "servicio-desconocido",
+        barberoId: "barbero_carlos",
+        fecha: "2026-07-10",
+        hora: "10:00"
+      }
+    });
+
+    // Act
+    await service.createPresentialReservation(event);
+
+    // Assert
+    const writes = repository.transactWrite.mock.calls[0][0];
+    expect(writes[0].Put.Item).toMatchObject({
+      servicioNombre: "servicio-desconocido",
+      precio: 0
+    });
+  });
+
+  it("rechaza cita presencial sin campos obligatorios", async () => {
+    // Arrange
+    const { service } = createService();
+    const event = lambdaEvent({ method: "POST", role: "SECRETARIA", body: { clienteCorreo: "cliente@demo.local" } });
+
+    // Act
+    const action = () => service.createPresentialReservation(event);
+
+    // Assert
+    await expect(action).rejects.toThrow("clienteCorreo, servicioId, barberoId, fecha y hora son obligatorios");
+  });
+
+  it("rechaza cita presencial cuando el evento no trae body", async () => {
+    // Arrange
+    const { service } = createService();
+    const event = lambdaEvent({ method: "POST", role: "SECRETARIA" });
+
+    // Act
+    const action = () => service.createPresentialReservation(event);
+
+    // Assert
+    await expect(action).rejects.toThrow("clienteCorreo, servicioId, barberoId, fecha y hora son obligatorios");
   });
 
   it("secretaria falla si el cliente no existe", async () => {
@@ -211,5 +391,35 @@ describe("reservationService integration con mocks", () => {
 
     // Assert
     await expect(action).rejects.toThrow("Horario no disponible");
+  });
+
+  it("permite usar reloj real cuando no se inyecta clock", async () => {
+    // Arrange
+    const repository = createRepositoryMock({
+      getItem: vi.fn().mockResolvedValue({ nombre: "Corte", precio: 30 })
+    });
+    const service = createReservationService({
+      repository,
+      auditLog: vi.fn().mockResolvedValue(undefined),
+      publishReservationEvent: vi.fn().mockResolvedValue(undefined),
+      idGenerator: fixedId(),
+      tableName: "barbercloud-test"
+    });
+    const event = lambdaEvent({
+      method: "POST",
+      body: {
+        servicioId: "corte",
+        barberoId: "barbero_carlos",
+        fecha: "2026-07-10",
+        hora: "10:00"
+      }
+    });
+
+    // Act
+    await service.createOnlineReservation(event);
+
+    // Assert
+    const writes = repository.transactWrite.mock.calls[0][0];
+    expect(writes[0].Put.Item.creadoEn).toEqual(expect.any(String));
   });
 });

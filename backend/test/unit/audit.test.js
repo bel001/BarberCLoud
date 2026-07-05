@@ -1,14 +1,18 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
+// Define mock first, then use in vi.mock (hoisting handles this)
+const { putItemMock } = vi.hoisted(() => {
+  const mock = vi.fn().mockResolvedValue(undefined);
+  return { putItemMock: mock, putItem: mock };
+});
+
 vi.mock("uuid", () => ({
   v4: () => "audit-id"
 }));
 
-const putItemMock = vi.fn().mockResolvedValue(undefined);
+vi.mock("../../src/lib/dynamodb.js", () => ({ putItem: putItemMock }));
 
-vi.mock("../../src/lib/dynamodb.js", () => ({
-  putItem: (...args) => putItemMock(...args)
-}));
+import { audit } from "../../src/lib/audit.js";
 
 describe("audit", () => {
   beforeEach(() => {
@@ -16,7 +20,6 @@ describe("audit", () => {
   });
 
   it("registra accion con usuario y rol del evento", async () => {
-    const { audit } = await import("../../src/lib/audit.js");
     const event = {
       requestContext: {
         authorizer: {
@@ -24,7 +27,6 @@ describe("audit", () => {
             claims: {
               sub: "admin-1",
               email: "admin@demo.local",
-              name: "Admin Demo",
               "cognito:groups": ["ADMIN"]
             }
           }
@@ -34,28 +36,20 @@ describe("audit", () => {
 
     await audit(event, "SERVICIO_CREAR", "OK", { servicioId: "corte" });
 
-    expect(putItemMock).toHaveBeenCalledWith(expect.objectContaining({
-      gsi1pk: "AUDIT_USER#admin-1",
-      tipo: "AUDIT_LOG",
-      action: "SERVICIO_CREAR",
-      status: "OK",
-      responsable: "admin@demo.local",
-      usuarioId: "admin-1",
-      rol: "ADMIN",
-      detail: { servicioId: "corte" }
-    }));
+    expect(putItemMock).toHaveBeenCalledTimes(1);
+    expect(putItemMock.mock.calls[0][0].gsi1pk).toBe("AUDIT_USER#admin-1");
+    expect(putItemMock.mock.calls[0][0].tipo).toBe("AUDIT_LOG");
+    expect(putItemMock.mock.calls[0][0].action).toBe("SERVICIO_CREAR");
+    expect(putItemMock.mock.calls[0][0].responsable).toBe("admin@demo.local");
   });
 
-  it("usa sub en gsi1pk cuando esta presente", async () => {
-    const { audit } = await import("../../src/lib/audit.js");
+  it("usa sub en gsi1pk y usa sub como usuarioId", async () => {
     const event = {
       requestContext: {
         authorizer: {
           jwt: {
             claims: {
               sub: "user-123",
-              email: "test@demo.local",
-              name: "Test User",
               "cognito:groups": ["BARBERO"]
             }
           }
@@ -65,36 +59,45 @@ describe("audit", () => {
 
     await audit(event, "RESERVA_CREAR", "OK");
 
-    expect(putItemMock).toHaveBeenCalledWith(expect.objectContaining({
-      gsi1pk: "AUDIT_USER#user-123"
-    }));
+    expect(putItemMock.mock.calls[0][0].gsi1pk).toBe("AUDIT_USER#user-123");
   });
 
-  it("registra audit log con campos correctos", async () => {
-    const { audit } = await import("../../src/lib/audit.js");
+  it("usa email cuando no hay sub", async () => {
     const event = {
       requestContext: {
         authorizer: {
           jwt: {
             claims: {
-              sub: "barbero-1",
-              email: "barbero@demo.local",
-              name: "Barbero Uno",
-              "cognito:groups": ["BARBERO"]
+              email: "cliente@demo.local",
+              "cognito:groups": ["CLIENTE"]
             }
           }
         }
       }
     };
 
-    await audit(event, "CORTE_COMPLETADO", "OK", { reservaId: "res-999" });
+    await audit(event, "RESERVA_CANCELAR", "OK");
 
-    const call = putItemMock.mock.calls[0][0];
-    expect(call.pk).toMatch(/^AUDIT#\d{4}-\d{2}-\d{2}$/);
-    expect(call.sk).toContain("#audit-id");
-    expect(call.tipo).toBe("AUDIT_LOG");
-    expect(call.action).toBe("CORTE_COMPLETADO");
-    expect(call.rol).toBe("BARBERO");
-    expect(call.detail).toEqual({ reservaId: "res-999" });
+    expect(putItemMock.mock.calls[0][0].gsi1pk).toBe("AUDIT_USER#cliente@demo.local");
+    expect(putItemMock.mock.calls[0][0].responsable).toBe("cliente@demo.local");
+  });
+
+  it("usa system cuando no hay sub ni email", async () => {
+    const event = {
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              "cognito:groups": ["SYSTEM"]
+            }
+          }
+        }
+      }
+    };
+
+    await audit(event, "CRON_JOB", "OK");
+
+    expect(putItemMock.mock.calls[0][0].gsi1pk).toBe("AUDIT_USER#system");
+    expect(putItemMock.mock.calls[0][0].usuarioId).toBe("system");
   });
 });

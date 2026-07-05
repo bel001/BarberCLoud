@@ -66,6 +66,22 @@ describe("calculateAvailability", () => {
     // Assert
     expect(result.barbero_carlos).toEqual(["09:00", "10:00", "11:00"]);
   });
+
+  it("usa agenda vacia cuando no existe entrada del barbero", () => {
+    // Arrange
+    const agendaByBarber = {};
+
+    // Act
+    const result = calculateAvailability({
+      barbers,
+      agendaByBarber,
+      fecha: "2026-07-10",
+      schedule
+    });
+
+    // Assert
+    expect(result.barbero_carlos).toEqual(["09:00", "10:00", "11:00"]);
+  });
 });
 
 describe("availability mapping", () => {

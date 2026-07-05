@@ -1,8 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { badRequest, created, ok, serverError } from "../../src/lib/response.js";
 import { parseBody } from "../helpers/events.js";
 
 describe("response helpers", () => {
+  afterEach(() => {
+    delete process.env.ENVIRONMENT;
+    delete process.env.NODE_ENV;
+    delete process.env.ALLOWED_ORIGINS;
+  });
+
   it("crea respuestas exitosas json", () => {
     // Arrange
     const payload = { message: "ok" };
@@ -69,5 +75,17 @@ describe("response helpers", () => {
 
     expect(response.statusCode).toBe(500);
     expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
+  });
+
+  it("usa origen permitido configurado fuera de ambiente dev", () => {
+    // Arrange
+    process.env.ENVIRONMENT = "prod";
+    process.env.ALLOWED_ORIGINS = "https://barbercloud.example";
+
+    // Act
+    const response = ok({ message: "ok" });
+
+    // Assert
+    expect(response.headers["Access-Control-Allow-Origin"]).toBe("https://barbercloud.example");
   });
 });

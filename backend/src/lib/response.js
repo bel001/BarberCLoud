@@ -6,13 +6,6 @@ const getAllowedOrigins = () => {
   return process.env.ALLOWED_ORIGINS || "*";
 };
 
-const buildJsonHeaders = () => ({
-  ...getAllowedOrigins() !== "*" ? {} : { "Access-Control-Allow-Origin": "*" },
-  "Access-Control-Allow-Headers": "Content-Type,Authorization",
-  "Access-Control-Allow-Methods": "GET,POST,PUT,DELETE,OPTIONS",
-  "Content-Type": "application/json"
-});
-
 const getCorsHeaders = () => ({
   "Access-Control-Allow-Origin": getAllowedOrigins(),
   "Access-Control-Allow-Headers": "Content-Type,Authorization",

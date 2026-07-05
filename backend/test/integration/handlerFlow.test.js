@@ -41,6 +41,23 @@ describe("handlers integration con servicios inyectados", () => {
     expect(parseBody(response)).toEqual({ message: "Venta registrada", ventaId: "venta_1" });
   });
 
+  it("lista ventas de POS con respuesta 200", async () => {
+    // Arrange
+    const service = {
+      listSales: vi.fn().mockResolvedValue({ ventas: [{ ventaId: "venta_1" }], total: 30 }),
+      registerSale: vi.fn()
+    };
+    const handler = createGestionPOSHandler(service);
+
+    // Act
+    const response = await handler(lambdaEvent({ method: "GET", role: "SECRETARIA" }));
+
+    // Assert
+    expect(service.listSales).toHaveBeenCalledTimes(1);
+    expect(response.statusCode).toBe(200);
+    expect(parseBody(response)).toEqual({ ventas: [{ ventaId: "venta_1" }], total: 30 });
+  });
+
   it("devuelve validacion de POS como bad request", async () => {
     // Arrange
     const service = {
@@ -56,6 +73,22 @@ describe("handlers integration con servicios inyectados", () => {
     // Assert
     expect(response.statusCode).toBe(400);
     expect(parseBody(response)).toEqual({ error: "concepto y total son obligatorios" });
+  });
+
+  it("mapea error inesperado de POS a 500", async () => {
+    // Arrange
+    const service = {
+      listSales: vi.fn().mockRejectedValue(new Error("fallo caja")),
+      registerSale: vi.fn()
+    };
+    const handler = createGestionPOSHandler(service);
+
+    // Act
+    const response = await handler(lambdaEvent({ method: "GET", role: "SECRETARIA" }));
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 
   it("finanzas solo permite administrador y devuelve reporte", async () => {
@@ -77,6 +110,21 @@ describe("handlers integration con servicios inyectados", () => {
       presenciales: 1,
       ingresosEstimados: 50
     });
+  });
+
+  it("mapea error de finanzas a error interno", async () => {
+    // Arrange
+    const service = {
+      getReport: vi.fn().mockRejectedValue(new Error("fallo reporte"))
+    };
+    const handler = createGestionFinancieraHandler(service);
+
+    // Act
+    const response = await handler(lambdaEvent({ method: "GET", role: "ADMIN" }));
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 
   it("secretaria lista clientes desde repositorio", async () => {
@@ -129,6 +177,70 @@ describe("handlers integration con servicios inyectados", () => {
       reservaId: "res_1",
       clienteId: "cliente-1"
     });
+  });
+
+  it("secretaria recibe error por operacion de clientes no soportada", async () => {
+    // Arrange
+    const handler = createGestionClientesHandler({
+      service: { createPresentialReservation: vi.fn() },
+      repository: { scanByTipo: vi.fn() }
+    });
+    const event = lambdaEvent({ method: "DELETE", rawPath: "/secretaria/clientes", role: "SECRETARIA" });
+
+    // Act
+    const response = await handler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "Operacion no soportada" });
+  });
+
+  it("secretaria recibe validacion de reserva presencial", async () => {
+    // Arrange
+    const handler = createGestionClientesHandler({
+      service: { createPresentialReservation: vi.fn().mockRejectedValue(new ServiceError("clienteCorreo es obligatorio")) },
+      repository: { scanByTipo: vi.fn() }
+    });
+    const event = lambdaEvent({ method: "POST", rawPath: "/secretaria/reservas-presenciales", role: "SECRETARIA" });
+
+    // Act
+    const response = await handler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "clienteCorreo es obligatorio" });
+  });
+
+  it("secretaria recibe conflicto de horario en reserva presencial", async () => {
+    // Arrange
+    const handler = createGestionClientesHandler({
+      service: { createPresentialReservation: vi.fn().mockRejectedValue({ name: "TransactionCanceledException" }) },
+      repository: { scanByTipo: vi.fn() }
+    });
+    const event = lambdaEvent({ method: "POST", rawPath: "/secretaria/reservas-presenciales", role: "SECRETARIA" });
+
+    // Act
+    const response = await handler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "Horario no disponible" });
+  });
+
+  it("secretaria recibe error interno si falla repositorio de clientes", async () => {
+    // Arrange
+    const handler = createGestionClientesHandler({
+      service: { createPresentialReservation: vi.fn() },
+      repository: { scanByTipo: vi.fn().mockRejectedValue(new Error("fallo db")) }
+    });
+    const event = lambdaEvent({ method: "GET", rawPath: "/secretaria/clientes", role: "SECRETARIA" });
+
+    // Act
+    const response = await handler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 
   it("consulta disponibilidad publica desde servicio inyectado", async () => {
@@ -205,5 +317,20 @@ describe("handlers integration con servicios inyectados", () => {
     // Assert
     expect(response.statusCode).toBe(400);
     expect(parseBody(response)).toEqual({ error: "reservaId es obligatorio" });
+  });
+
+  it("mapea error inesperado al cancelar reserva", async () => {
+    // Arrange
+    const service = {
+      cancelReservation: vi.fn().mockRejectedValue(new Error("fallo cancelacion"))
+    };
+    const handler = createCancelarReservaHandler(service);
+
+    // Act
+    const response = await handler(lambdaEvent({ method: "POST", pathParameters: { id: "res_1" } }));
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 });

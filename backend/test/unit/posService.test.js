@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { calculateCashTotal, createPosService } from "../../src/services/posService.js";
+import { calculateCashTotal, createPosService, validateSaleInput } from "../../src/services/posService.js";
 import { lambdaEvent } from "../helpers/events.js";
 import { createRepositoryMock, fixedClock, fixedId } from "../helpers/mocks.js";
 
@@ -80,5 +80,67 @@ describe("posService", () => {
       ventaId: "venta_venta-id",
       total: 30
     });
+  });
+
+  it("valida venta y usa efectivo por defecto", () => {
+    // Arrange
+    const body = { concepto: "Corte", total: "30" };
+
+    // Act
+    const result = validateSaleInput(body);
+
+    // Assert
+    expect(result).toEqual({ concepto: "Corte", total: 30, metodoPago: "EFECTIVO" });
+  });
+
+  it("rechaza venta sin concepto o total", () => {
+    // Arrange
+    const body = { concepto: "Corte" };
+
+    // Act
+    const action = () => validateSaleInput(body);
+
+    // Assert
+    expect(action).toThrow("concepto y total son obligatorios");
+  });
+
+  it("rechaza venta cuando el evento no trae body", async () => {
+    // Arrange
+    const service = createPosService({
+      repository: createRepositoryMock(),
+      auditLog: vi.fn(),
+      idGenerator: fixedId(),
+      clock: fixedClock()
+    });
+    const event = lambdaEvent({ method: "POST", role: "SECRETARIA" });
+
+    // Act
+    const action = () => service.registerSale(event);
+
+    // Assert
+    await expect(action).rejects.toThrow("concepto y total son obligatorios");
+  });
+
+  it("registra venta usando reloj real cuando no se inyecta clock", async () => {
+    // Arrange
+    const repository = createRepositoryMock();
+    const service = createPosService({
+      repository,
+      auditLog: vi.fn().mockResolvedValue(undefined),
+      idGenerator: fixedId("venta-real")
+    });
+    const event = lambdaEvent({
+      method: "POST",
+      role: "SECRETARIA",
+      user: { email: "secretaria@demo.local" },
+      body: { concepto: "Corte", total: 30 }
+    });
+
+    // Act
+    const result = await service.registerSale(event);
+
+    // Assert
+    expect(result).toEqual({ message: "Venta registrada", ventaId: "venta_venta-real" });
+    expect(repository.putItem.mock.calls[0][0].creadoEn).toEqual(expect.any(String));
   });
 });

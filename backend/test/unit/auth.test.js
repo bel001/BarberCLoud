@@ -54,4 +54,104 @@ describe("auth helpers", () => {
       name: "Usuario"
     });
   });
+
+  it("parsea grupos cuando es un array", () => {
+    // Arrange
+    const event = {
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              "cognito:groups": ["ADMIN", "BARBERO"]
+            }
+          }
+        }
+      }
+    };
+
+    // Act
+    const groups = getGroups(event);
+
+    // Assert
+    expect(groups).toEqual(["ADMIN", "BARBERO"]);
+  });
+
+  it("devuelve rol desde claim role cuando no hay cognito:groups", () => {
+    // Arrange
+    const event = {
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              role: "SECRETARIA"
+            }
+          }
+        }
+      }
+    };
+
+    // Act
+    const groups = getGroups(event);
+    const role = getPrimaryRole(event);
+
+    // Assert
+    expect(groups).toEqual(["SECRETARIA"]);
+    expect(role).toBe("SECRETARIA");
+  });
+
+  it("da acceso cuando rol esta en la lista permitida", () => {
+    // Arrange
+    const event = {
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              "cognito:groups": ["ADMIN"]
+            }
+          }
+        }
+      }
+    };
+
+    // Act & Assert
+    expect(hasRole(event, ["ADMIN", "SUPER"])).toBe(true);
+    expect(hasRole(event, ["BARBERO"])).toBe(false);
+  });
+
+  it("getUser usa email como nombre cuando no hay name", () => {
+    // Arrange
+    const event = {
+      requestContext: {
+        authorizer: {
+          jwt: {
+            claims: {
+              sub: "user-1",
+              email: "user@demo.local"
+            }
+          }
+        }
+      }
+    };
+
+    // Act
+    const user = getUser(event);
+
+    // Assert
+    expect(user).toEqual({
+      sub: "user-1",
+      email: "user@demo.local",
+      name: "user@demo.local"
+    });
+  });
+
+  it("getUser sin claims devuelve usuario anonimo", () => {
+    // Arrange
+    const event = { requestContext: {} };
+
+    // Act
+    const user = getUser(event);
+
+    // Assert
+    expect(user.name).toBe("Usuario");
+  });
 });

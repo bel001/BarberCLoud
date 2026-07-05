@@ -12,6 +12,9 @@ const auditMock = vi.hoisted(() => vi.fn());
 const sendReservationEmailMock = vi.hoisted(() => vi.fn());
 const cognitoSendMock = vi.hoisted(() => vi.fn());
 const publishReservationEventMock = vi.hoisted(() => vi.fn());
+const nuevaReservaServiceMock = vi.hoisted(() => ({
+  createOnlineReservation: vi.fn()
+}));
 
 const cognitoCommands = vi.hoisted(() => ({
   AdminAddUserToGroupCommand: vi.fn(function AdminAddUserToGroupCommand(input) {
@@ -102,6 +105,7 @@ describe("handlers operativos del diagrama", () => {
     // Arrange
     dynamodbMocks.scanReservas.mockResolvedValue([
       { tipo: "RESERVA", pk: "CLIENTE#1", fecha: "2026-07-10", hora: "09:00" },
+      { tipo: "RESERVA", pk: "BARBERO#1", fecha: "2026-07-10", hora: "11:00" },
       { tipo: "RESERVA", pk: "BARBERO#1", fecha: "2026-07-10", hora: "09:00" }
     ]);
 
@@ -110,7 +114,64 @@ describe("handlers operativos del diagrama", () => {
 
     // Assert
     expect(response.statusCode).toBe(200);
-    expect(parseBody(response).citas).toEqual([{ tipo: "RESERVA", pk: "BARBERO#1", fecha: "2026-07-10", hora: "09:00" }]);
+    expect(parseBody(response).citas).toEqual([
+      { tipo: "RESERVA", pk: "BARBERO#1", fecha: "2026-07-10", hora: "09:00" },
+      { tipo: "RESERVA", pk: "BARBERO#1", fecha: "2026-07-10", hora: "11:00" }
+    ]);
+  });
+
+  it("barbero usa sub cuando no existe perfil registrado", async () => {
+    // Arrange
+    dynamodbMocks.scanByTipo.mockResolvedValue([]);
+    dynamodbMocks.queryByPk.mockResolvedValue([]);
+
+    // Act
+    const response = await agendaHandler(lambdaEvent({
+      role: "BARBERO",
+      user: { sub: "barbero-sub", email: "sin-perfil@demo.local" }
+    }));
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(dynamodbMocks.queryByPk).toHaveBeenCalledWith("BARBERO#barbero-sub");
+  });
+
+  it("barbero usa id por defecto cuando no hay perfil ni sub", async () => {
+    // Arrange
+    dynamodbMocks.scanByTipo.mockResolvedValue([]);
+    dynamodbMocks.queryByPk.mockResolvedValue([]);
+    const event = {
+      requestContext: {
+        http: { method: "GET" },
+        authorizer: {
+          jwt: {
+            claims: {
+              email: "sin-sub@demo.local",
+              role: "BARBERO"
+            }
+          }
+        }
+      }
+    };
+
+    // Act
+    const response = await agendaHandler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(dynamodbMocks.queryByPk).toHaveBeenCalledWith("BARBERO#barbero_carlos");
+  });
+
+  it("mapea error de agenda a 500", async () => {
+    // Arrange
+    dynamodbMocks.scanReservas.mockRejectedValue(new Error("fallo agenda"));
+
+    // Act
+    const response = await agendaHandler(lambdaEvent({ role: "ADMIN" }));
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 
   it("registra consumo de insumo del barbero", async () => {
@@ -132,6 +193,73 @@ describe("handlers operativos del diagrama", () => {
       barberoId: "barbero-1",
       cantidad: 2
     }));
+  });
+
+  it("lista todos los consumos de insumos para administrador", async () => {
+    // Arrange
+    dynamodbMocks.scanByTipo.mockResolvedValue([
+      { tipo: "INSUMO_USO", barberoId: "barbero-1" },
+      { tipo: "INSUMO_USO", barberoId: "barbero-2" }
+    ]);
+
+    // Act
+    const response = await insumosHandler(lambdaEvent({ role: "ADMIN" }));
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(parseBody(response).insumos).toHaveLength(2);
+  });
+
+  it("lista solo consumos del barbero autenticado", async () => {
+    // Arrange
+    dynamodbMocks.scanByTipo.mockResolvedValue([
+      { tipo: "INSUMO_USO", barberoId: "barbero-1" },
+      { tipo: "INSUMO_USO", barberoId: "barbero-2" }
+    ]);
+
+    // Act
+    const response = await insumosHandler(lambdaEvent({
+      role: "BARBERO",
+      user: { sub: "barbero-1", email: "barbero@demo.local" }
+    }));
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(parseBody(response).insumos).toEqual([{ tipo: "INSUMO_USO", barberoId: "barbero-1" }]);
+  });
+
+  it("rechaza consumo de insumo sin datos obligatorios", async () => {
+    // Act
+    const response = await insumosHandler(lambdaEvent({
+      method: "POST",
+      role: "BARBERO",
+      body: { insumoId: "gel" }
+    }));
+
+    // Assert
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "insumoId, nombre y cantidad son obligatorios" });
+  });
+
+  it("rechaza consumo de insumo sin body", async () => {
+    // Act
+    const response = await insumosHandler(lambdaEvent({ method: "POST", role: "BARBERO" }));
+
+    // Assert
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "insumoId, nombre y cantidad son obligatorios" });
+  });
+
+  it("mapea error de insumos a 500", async () => {
+    // Arrange
+    dynamodbMocks.scanByTipo.mockRejectedValue(new Error("fallo insumos"));
+
+    // Act
+    const response = await insumosHandler(lambdaEvent({ role: "BARBERO" }));
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 
   it("lista inventario para secretaria", async () => {
@@ -167,6 +295,25 @@ describe("handlers operativos del diagrama", () => {
     }));
   });
 
+  it("registra producto con id autogenerado y precio cero por defecto", async () => {
+    // Arrange
+    const event = lambdaEvent({
+      method: "POST",
+      role: "SECRETARIA",
+      body: { nombre: "Cera", stock: 5 }
+    });
+
+    // Act
+    const response = await inventarioHandler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(201);
+    expect(dynamodbMocks.putItem).toHaveBeenCalledWith(expect.objectContaining({
+      productoId: "prod_test-id",
+      precio: 0
+    }));
+  });
+
   it("rechaza inventario sin datos obligatorios", async () => {
     // Act
     const response = await inventarioHandler(lambdaEvent({ method: "POST", role: "SECRETARIA", body: { nombre: "Gel" } }));
@@ -174,6 +321,27 @@ describe("handlers operativos del diagrama", () => {
     // Assert
     expect(response.statusCode).toBe(400);
     expect(parseBody(response)).toEqual({ error: "nombre y stock son obligatorios" });
+  });
+
+  it("rechaza inventario sin body", async () => {
+    // Act
+    const response = await inventarioHandler(lambdaEvent({ method: "POST", role: "SECRETARIA" }));
+
+    // Assert
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "nombre y stock son obligatorios" });
+  });
+
+  it("mapea error de inventario a 500", async () => {
+    // Arrange
+    dynamodbMocks.scanByTipo.mockRejectedValue(new Error("fallo inventario"));
+
+    // Act
+    const response = await inventarioHandler(lambdaEvent({ role: "SECRETARIA" }));
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 
   it("administrador guarda servicio de negocio", async () => {
@@ -196,6 +364,72 @@ describe("handlers operativos del diagrama", () => {
     }));
   });
 
+  it("administrador lista servicios de negocio", async () => {
+    // Arrange
+    dynamodbMocks.scanByTipo.mockResolvedValue([{ servicioId: "fade", nombre: "Fade" }]);
+
+    // Act
+    const response = await negocioHandler(lambdaEvent({ role: "ADMIN" }));
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(parseBody(response)).toEqual({ servicios: [{ servicioId: "fade", nombre: "Fade" }] });
+  });
+
+  it("administrador guarda servicio con id y duracion por defecto", async () => {
+    // Arrange
+    const event = lambdaEvent({
+      method: "POST",
+      role: "ADMIN",
+      body: { nombre: "Barba", precio: 20 }
+    });
+
+    // Act
+    const response = await negocioHandler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(201);
+    expect(dynamodbMocks.putItem).toHaveBeenCalledWith(expect.objectContaining({
+      servicioId: "servicio_test-id",
+      duracionMinutos: 45,
+      estado: "ACTIVO"
+    }));
+  });
+
+  it("rechaza servicio sin nombre o precio", async () => {
+    // Act
+    const response = await negocioHandler(lambdaEvent({
+      method: "POST",
+      role: "ADMIN",
+      body: { nombre: "Barba" }
+    }));
+
+    // Assert
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "nombre y precio son obligatorios" });
+  });
+
+  it("rechaza servicio sin body", async () => {
+    // Act
+    const response = await negocioHandler(lambdaEvent({ method: "POST", role: "ADMIN" }));
+
+    // Assert
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "nombre y precio son obligatorios" });
+  });
+
+  it("mapea error de negocio a 500", async () => {
+    // Arrange
+    dynamodbMocks.scanByTipo.mockRejectedValue(new Error("fallo negocio"));
+
+    // Act
+    const response = await negocioHandler(lambdaEvent({ role: "ADMIN" }));
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
+  });
+
   it("administrador crea personal interno en Cognito y DynamoDB", async () => {
     // Arrange
     process.env.USER_POOL_ID = "pool-1";
@@ -215,6 +449,45 @@ describe("handlers operativos del diagrama", () => {
       tipo: "BARBERO",
       email: "nuevo@demo.local",
       rol: "BARBERO"
+    }));
+  });
+
+  it("rechaza crear personal sin campos obligatorios", async () => {
+    // Act
+    const response = await personalHandler(lambdaEvent({ method: "POST", role: "ADMIN", body: { email: "x@demo.local" } }));
+
+    // Assert
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "email, nombre, rol y password son obligatorios" });
+  });
+
+  it("rechaza crear personal sin body", async () => {
+    // Act
+    const response = await personalHandler(lambdaEvent({ method: "POST", role: "ADMIN" }));
+
+    // Assert
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "email, nombre, rol y password son obligatorios" });
+  });
+
+  it("crea usuario interno sin Cognito cuando no hay user pool", async () => {
+    // Arrange
+    const event = lambdaEvent({
+      method: "POST",
+      role: "ADMIN",
+      body: { userId: "secretaria-1", email: "sec@demo.local", nombre: "Sec", rol: "SECRETARIA", password: "Temporal123" }
+    });
+
+    // Act
+    const response = await personalHandler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(201);
+    expect(cognitoSendMock).not.toHaveBeenCalled();
+    expect(dynamodbMocks.putItem).toHaveBeenCalledWith(expect.objectContaining({
+      tipo: "USUARIO_INTERNO",
+      userId: "secretaria-1",
+      rol: "SECRETARIA"
     }));
   });
 
@@ -257,12 +530,58 @@ describe("handlers operativos del diagrama", () => {
     expect(parseBody(response)).toMatchObject({ servicios: 1, inventario: 2 });
   });
 
+  it("manage services mapea errores de repositorio", async () => {
+    // Arrange
+    dynamodbMocks.scanByTipo.mockRejectedValue(new Error("fallo configuracion"));
+
+    // Act
+    const response = await manageServicesHandler({});
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
+  });
+
+  it("lambda consumer admin procesa origen EventBridge por defecto", async () => {
+    // Act
+    const response = await lambdaConsumerAdminHandler({});
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(parseBody(response)).toEqual({ message: "Proceso administrativo ejecutado" });
+  });
+
+  it("lambda consumer admin procesa origen SNS", async () => {
+    // Act
+    const response = await lambdaConsumerAdminHandler({ source: "aws.sns" });
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+  });
+
   it("lambda consumer admin rechaza origen no autorizado", async () => {
     // Act
     const response = await lambdaConsumerAdminHandler({ source: "manual.test" });
 
     // Assert
     expect(response.statusCode).toBe(403);
+  });
+
+  it("lambda consumer de disponibilidad procesa origen SNS de registros", async () => {
+    // Act
+    const response = await lambdaConsumerAvailHandler({ Records: [{ EventSource: "aws.sns" }] });
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(parseBody(response)).toEqual({ message: "Disponibilidad refrescada" });
+  });
+
+  it("lambda consumer de disponibilidad usa EventBridge por defecto", async () => {
+    // Act
+    const response = await lambdaConsumerAvailHandler({});
+
+    // Assert
+    expect(response.statusCode).toBe(200);
   });
 
   it("lambda consumer de disponibilidad procesa eventos de EventBridge", async () => {
@@ -295,6 +614,18 @@ describe("handlers operativos del diagrama", () => {
     expect(parseBody(response)).toEqual([{ tipo: "RESERVA", reservaId: "res-1" }]);
   });
 
+  it("cliente recibe error interno si falla listado de reservas", async () => {
+    // Arrange
+    dynamodbMocks.queryByPk.mockRejectedValue(new Error("fallo reservas"));
+
+    // Act
+    const response = await misReservasHandler(lambdaEvent({ role: "CLIENTE", user: { sub: "cliente-1" } }));
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
+  });
+
   it("procesa notificacion SNS de reserva creada", async () => {
     // Arrange
     const event = {
@@ -312,6 +643,38 @@ describe("handlers operativos del diagrama", () => {
     }));
   });
 
+  it("procesa notificacion de reserva creada sin wrapper reserva", async () => {
+    // Arrange
+    const event = {
+      Records: [{ Sns: { Message: JSON.stringify({ clienteCorreo: "cliente@demo.local", fecha: "2026-07-10", hora: "09:00", reservaId: "res-1" }) } }]
+    };
+
+    // Act
+    const response = await notificarReservaHandler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(sendReservationEmailMock).toHaveBeenCalledWith(expect.objectContaining({
+      to: "cliente@demo.local",
+      subject: "Reserva confirmada - BarberCloud"
+    }));
+  });
+
+  it("mapea error de notificacion de reserva", async () => {
+    // Arrange
+    sendReservationEmailMock.mockRejectedValue(new Error("fallo correo"));
+    const event = {
+      Records: [{ Sns: { Message: JSON.stringify({ reserva: { clienteCorreo: "cliente@demo.local" } }) } }]
+    };
+
+    // Act
+    const response = await notificarReservaHandler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
+  });
+
   it("procesa notificacion SNS de reserva cancelada", async () => {
     // Arrange
     const event = {
@@ -327,6 +690,38 @@ describe("handlers operativos del diagrama", () => {
       to: "cliente@demo.local",
       subject: "Reserva cancelada - BarberCloud"
     }));
+  });
+
+  it("procesa notificacion de cancelacion sin wrapper reserva", async () => {
+    // Arrange
+    const event = {
+      Records: [{ Sns: { Message: JSON.stringify({ clienteCorreo: "cliente@demo.local", fecha: "2026-07-10", hora: "09:00", reservaId: "res-1" }) } }]
+    };
+
+    // Act
+    const response = await notificarCancelacionHandler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(sendReservationEmailMock).toHaveBeenCalledWith(expect.objectContaining({
+      to: "cliente@demo.local",
+      subject: "Reserva cancelada - BarberCloud"
+    }));
+  });
+
+  it("mapea error de notificacion de cancelacion", async () => {
+    // Arrange
+    sendReservationEmailMock.mockRejectedValue(new Error("fallo correo"));
+    const event = {
+      Records: [{ Sns: { Message: JSON.stringify({ reserva: { clienteCorreo: "cliente@demo.local" } }) } }]
+    };
+
+    // Act
+    const response = await notificarCancelacionHandler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 
   it("post confirm agrega cliente a Cognito y registra perfil", async () => {
@@ -369,6 +764,38 @@ describe("handlers operativos del diagrama", () => {
     expect(dynamodbMocks.putItem).not.toHaveBeenCalled();
   });
 
+  it("post confirm ignora evento sin request", async () => {
+    // Act
+    const result = await postConfirmClienteHandler({});
+
+    // Assert
+    expect(result).toEqual({});
+    expect(cognitoSendMock).not.toHaveBeenCalled();
+    expect(dynamodbMocks.putItem).not.toHaveBeenCalled();
+  });
+
+  it("post confirm usa userName y nombre por defecto cuando faltan sub y name", async () => {
+    // Arrange
+    const event = {
+      userName: "cliente@demo.local",
+      request: {
+        userAttributes: {
+          email: "cliente@demo.local"
+        }
+      }
+    };
+
+    // Act
+    const result = await postConfirmClienteHandler(event);
+
+    // Assert
+    expect(result).toBe(event);
+    expect(dynamodbMocks.putItem).toHaveBeenCalledWith(expect.objectContaining({
+      pk: "CLIENTE#cliente@demo.local",
+      nombre: "cliente@demo.local"
+    }));
+  });
+
   it("consumer SQS procesa mensaje de reserva cancelada", async () => {
     // Arrange
     const payload = {
@@ -394,6 +821,47 @@ describe("handlers operativos del diagrama", () => {
     }));
   });
 
+  it("consumer SQS procesa mensaje directo de reserva confirmada", async () => {
+    // Arrange
+    const event = {
+      Records: [{
+        body: JSON.stringify({
+          clienteCorreo: "cliente@demo.local",
+          fecha: "2026-07-10",
+          hora: "09:00",
+          reservaId: "res-1"
+        })
+      }]
+    };
+
+    // Act
+    const response = await sqsNotificationConsumerHandler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(sendReservationEmailMock).toHaveBeenCalledWith(expect.objectContaining({
+      subject: "Reserva confirmada - BarberCloud"
+    }));
+  });
+
+  it("consumer SQS acepta eventos sin registros", async () => {
+    // Act
+    const response = await sqsNotificationConsumerHandler({});
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(sendReservationEmailMock).not.toHaveBeenCalled();
+  });
+
+  it("consumer SQS acepta registro sin body", async () => {
+    // Act
+    const response = await sqsNotificationConsumerHandler({ Records: [{}] });
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(sendReservationEmailMock).not.toHaveBeenCalled();
+  });
+
   it("consumer SQS ignora mensajes sin correo de cliente", async () => {
     // Arrange
     const event = {
@@ -407,21 +875,29 @@ describe("handlers operativos del diagrama", () => {
     expect(response.statusCode).toBe(200);
     expect(sendReservationEmailMock).not.toHaveBeenCalled();
   });
+
+  it("consumer SQS mapea errores de parseo", async () => {
+    // Arrange
+    const event = { Records: [{ body: "no-json" }] };
+
+    // Act
+    const response = await sqsNotificationConsumerHandler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(500);
+    expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
+  });
 });
 
 describe("nuevaReserva handler", () => {
-  const mockService = vi.hoisted(() => ({
-    createOnlineReservation: vi.fn()
-  }));
-
-  const nuevaReservaHandler = createNuevaReservaHandler(mockService);
+  const nuevaReservaHandler = createNuevaReservaHandler(nuevaReservaServiceMock);
 
   beforeEach(() => {
-    vi.clearAllMocks();
+    nuevaReservaServiceMock.createOnlineReservation.mockReset();
   });
 
   it("crea reserva exitosamente para cliente", async () => {
-    mockService.createOnlineReservation.mockResolvedValue({ reservaId: "res-1" });
+    nuevaReservaServiceMock.createOnlineReservation.mockResolvedValue({ reservaId: "res-1" });
 
     const event = lambdaEvent({
       role: "CLIENTE",
@@ -436,7 +912,7 @@ describe("nuevaReserva handler", () => {
 
   it("devuelve 400 cuando hay ServiceError", async () => {
     const { ServiceError } = await import("../../src/services/errors.js");
-    mockService.createOnlineReservation.mockRejectedValue(new ServiceError("Datos invalidos"));
+    nuevaReservaServiceMock.createOnlineReservation.mockRejectedValue(new ServiceError("Datos invalidos"));
 
     const event = lambdaEvent({ role: "CLIENTE" });
     const response = await nuevaReservaHandler(event);
@@ -446,7 +922,7 @@ describe("nuevaReserva handler", () => {
   });
 
   it("devuelve 400 cuando hay conflicto de horario", async () => {
-    mockService.createOnlineReservation.mockRejectedValue({ name: "TransactionCanceledException" });
+    nuevaReservaServiceMock.createOnlineReservation.mockRejectedValue({ name: "TransactionCanceledException" });
 
     const event = lambdaEvent({ role: "CLIENTE" });
     const response = await nuevaReservaHandler(event);
@@ -456,7 +932,7 @@ describe("nuevaReserva handler", () => {
   });
 
   it("devuelve 500 en error inesperado", async () => {
-    mockService.createOnlineReservation.mockRejectedValue(new Error("DB timeout"));
+    nuevaReservaServiceMock.createOnlineReservation.mockRejectedValue(new Error("DB timeout"));
 
     const event = lambdaEvent({ role: "CLIENTE" });
     const response = await nuevaReservaHandler(event);

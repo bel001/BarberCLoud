@@ -145,4 +145,48 @@ describe("notifications", () => {
       { eventType: "RAW" }
     ]);
   });
+
+  it("devuelve lista vacia cuando no hay registros SNS o SQS", async () => {
+    // Arrange
+    const { getSnsRecords } = await importNotifications();
+
+    // Act
+    const records = getSnsRecords({});
+
+    // Assert
+    expect(records).toEqual([]);
+  });
+
+  it("ignora encolado cuando no existe URL de cola", async () => {
+    // Arrange
+    const { enqueueNotification } = await importNotifications();
+
+    // Act
+    await enqueueNotification({ to: "cliente@demo.local" });
+
+    // Assert
+    expect(sqsSend).not.toHaveBeenCalled();
+  });
+
+  it("encola notificacion cuando SES falla", async () => {
+    // Arrange
+    sesSend.mockRejectedValueOnce(new Error("SES connection timeout"));
+    sqsSend.mockResolvedValueOnce({});
+    const { sendReservationEmail } = await importNotifications({
+      SES_SENDER_EMAIL: "no-reply@barbercloud.com",
+      NOTIFICATION_QUEUE_URL: "https://sqs.test/queue"
+    });
+
+    // Act
+    const result = await sendReservationEmail({
+      to: "cliente@demo.local",
+      subject: "Reserva",
+      message: "Confirmada"
+    });
+
+    // Assert
+    expect(result).toEqual({ queued: true });
+    expect(sqsSend).toHaveBeenCalled();
+    expect(sqsSend.mock.calls[0][0].input.MessageBody).toContain("SES connection timeout");
+  });
 });
