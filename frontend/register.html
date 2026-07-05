@@ -1,50 +1,92 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <title>Crear cuenta | BarberCloud</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BarberCloud | Crear Cuenta</title>
   <link rel="stylesheet" href="assets/css/app.css">
+
+<script>
+  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
+</script>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand"><span class="brand-mark">BC</span><span>BarberCloud</span></div>
-    <nav>
-      <a href="index.html">Inicio</a>
-      <a href="login.html">Ingresar</a>
-    </nav>
-  </header>
+  <div class="auth-page">
+    <div class="auth-card">
+      <a href="index.html" class="brand">
+        <span class="brand-mark">BC</span>
+        <span>BarberCloud</span>
+      </a>
 
-  <main class="form-card">
-    <p class="eyebrow">Cuenta cliente</p>
-    <h2>Crea tu cuenta para reservar</h2>
-    <p class="card-text">Puedes navegar sin cuenta, pero para confirmar una cita necesitas registrarte.</p>
+      <h1>Crea tu cuenta</h1>
+      <p class="subtitle">Regístrate para reservar citas online</p>
 
-    <form>
-      <label for="nombreCliente">Nombre completo</label>
-      <input id="nombreCliente" type="text" placeholder="Tu nombre">
+      <div id="message-container"></div>
 
-      <label for="emailCliente">Correo electrónico</label>
-      <input id="emailCliente" type="email" placeholder="correo@email.com">
+      <form id="register-form" class="flex flex-col gap-4">
+        <div class="form-group">
+          <label class="form-label" for="nombreCliente">Nombre completo</label>
+          <input type="text" id="nombreCliente" class="form-input" placeholder="Tu nombre completo" required>
+        </div>
 
-      <label for="passwordCliente">Contraseña</label>
-      <input id="passwordCliente" type="password" placeholder="********">
+        <div class="form-group">
+          <label class="form-label" for="emailCliente">Correo electrónico</label>
+          <input type="email" id="emailCliente" class="form-input" placeholder="tu@email.com" required>
+        </div>
 
-      <button class="btn-primary" type="button" onclick="registrarCliente()">Crear cuenta</button>
-    </form>
+        <div class="form-group">
+          <label class="form-label" for="passwordCliente">Contraseña</label>
+          <input type="password" id="passwordCliente" class="form-input" placeholder="Mínimo 8 caracteres" required>
+        </div>
 
-    <div class="notice" id="resultado">En AWS este registro se conecta con Amazon Cognito.</div>
-  </main>
+        <button type="submit" class="btn btn-primary btn-lg" id="register-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="8.5" cy="7" r="4"/>
+            <line x1="20" y1="8" x2="20" y2="14"/>
+            <line x1="23" y1="11" x2="17" y2="11"/>
+          </svg>
+          Crear Cuenta
+        </button>
+      </form>
+
+      <p class="auth-footer mt-4">
+        ¿Ya tienes cuenta? <a href="login.html">Inicia sesión</a>
+      </p>
+
+      <button class="theme-toggle" title="Cambiar tema" style="margin: 24px auto 0;">
+        <svg class="icon-sun hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
+
   <script src="assets/js/config.js"></script>
+  <script src="assets/js/utils.js"></script>
   <script src="assets/js/auth.js"></script>
   <script>
-    function registrarCliente() {
-      if (BARBERCLOUD_CONFIG.AUTH_MODE === "cognito") {
+    document.getElementById('register-form').addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      if (BARBERCLOUD_CONFIG.AUTH_MODE === 'cognito') {
         AUTH.registerWithCognito();
         return;
       }
 
-      document.getElementById("resultado").innerText = "En modo local usa las cuentas demo del README.";
-    }
+      Toast.show('En modo local usa las cuentas demo del README', 'info');
+    });
   </script>
 </body>
 </html>
