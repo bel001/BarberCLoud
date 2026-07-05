@@ -59,7 +59,7 @@ Requisitos:
 
 - AWS CLI autenticado.
 - Terraform >= 1.5.
-- Node.js 20.
+- Node.js 24 para ejecutar pruebas y herramientas locales.
 - Correo remitente verificado en SES para enviar notificaciones reales.
 
 Comandos:
