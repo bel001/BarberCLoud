@@ -51,13 +51,13 @@ resource "aws_cloudwatch_log_group" "lambda" {
 
   name              = "/aws/lambda/${local.name}-${replace(each.key, "_", "-")}"
   kms_key_id        = aws_kms_key.app.arn
-  retention_in_days = 30
+  retention_in_days = 365
 }
 
 resource "aws_cloudwatch_log_group" "post_confirm_cliente" {
   name              = "/aws/lambda/${local.name}-post-confirm-cliente"
   kms_key_id        = aws_kms_key.app.arn
-  retention_in_days = 30
+  retention_in_days = 365
 }
 
 resource "aws_lambda_function" "post_confirm_cliente" {

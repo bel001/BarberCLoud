@@ -73,6 +73,7 @@ resource "aws_iam_policy" "lambda_policy" {
         Action = [
           "cognito-idp:AdminAddUserToGroup",
           "cognito-idp:AdminCreateUser",
+          "cognito-idp:AdminDeleteUser",
           "cognito-idp:AdminSetUserPassword"
         ]
         Resource = aws_cognito_user_pool.users.arn
