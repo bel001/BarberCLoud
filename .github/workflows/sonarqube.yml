@@ -1,0 +1,42 @@
+name: SonarQube Cloud
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - feature/sonarqube-cloud
+      - feature/aws-diagrama-completo
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  sonar:
+    name: Analisis de calidad con SonarQube Cloud
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias backend
+        run: npm -C backend ci
+
+      - name: Ejecutar pruebas con cobertura
+        run: npm -C backend run test:coverage
+
+      - name: Ejecutar analisis SonarQube Cloud
+        uses: SonarSource/sonarqube-scan-action@v8
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}

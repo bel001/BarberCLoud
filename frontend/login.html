@@ -1,41 +1,107 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
   <meta charset="UTF-8">
-  <title>Ingresar | BarberCloud</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BarberCloud | Iniciar Sesión</title>
   <link rel="stylesheet" href="assets/css/app.css">
+
+<script>
+  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
+</script>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand"><span class="brand-mark">BC</span><span>BarberCloud</span></div>
-    <nav>
-      <a href="index.html">Inicio</a>
-      <a href="register.html">Crear cuenta</a>
-    </nav>
-  </header>
+  <div class="auth-page">
+    <div class="auth-card">
+      <a href="index.html" class="brand">
+        <span class="brand-mark">BC</span>
+        <span>BarberCloud</span>
+      </a>
 
-  <main class="form-card">
-    <p class="eyebrow">Acceso seguro</p>
-    <h2>Ingresa a tu cuenta</h2>
-    <p class="card-text">El sistema detectará automáticamente tu tipo de cuenta.</p>
+      <h1>Bienvenido de nuevo</h1>
+      <p class="subtitle">Ingresa tus credenciales para continuar</p>
 
-    <form id="formLogin">
-      <label>Correo electrónico</label>
-      <input id="email" type="email" required placeholder="correo@barbercloud.com">
+      <div id="message-container"></div>
 
-      <label>Contraseña</label>
-      <input id="password" type="password" required placeholder="********">
+      <form id="login-form" class="flex flex-col gap-4">
+        <div class="form-group">
+          <label class="form-label" for="email">Correo electrónico</label>
+          <input type="email" id="email" class="form-input" placeholder="tu@email.com" required>
+        </div>
 
-      <button class="btn-primary" type="submit">Ingresar</button>
-    </form>
+        <div class="form-group">
+          <label class="form-label" for="password">Contraseña</label>
+          <input type="password" id="password" class="form-input" placeholder="Tu contraseña" required>
+        </div>
 
-    <div id="resultado" class="notice"></div>
-  </main>
+        <button type="submit" class="btn btn-primary btn-lg" id="login-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/>
+            <polyline points="10 17 15 12 10 7"/>
+            <line x1="15" y1="12" x2="3" y2="12"/>
+          </svg>
+          Iniciar Sesión
+        </button>
+      </form>
+
+      <p class="auth-footer mt-4">
+        ¿No tienes cuenta? <a href="register.html">Regístrate aquí</a>
+      </p>
+
+      <button class="theme-toggle" title="Cambiar tema" style="margin: 24px auto 0;">
+        <svg class="icon-sun hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </button>
+    </div>
+  </div>
 
   <script src="assets/js/config.js"></script>
+  <script src="assets/js/utils.js"></script>
   <script src="assets/js/auth.js"></script>
+  <script src="assets/js/api.js"></script>
   <script>
-    document.getElementById("formLogin").addEventListener("submit", iniciarSesion);
+    document.getElementById('login-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const btn = document.getElementById('login-btn');
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+
+      Loading.button(btn, true);
+
+      try {
+        const response = await fetch(`${BARBERCLOUD_CONFIG.API_BASE_URL}/dev/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Credenciales inválidas');
+        }
+
+        AUTH.saveSession(data);
+        Toast.show('Sesión iniciada correctamente', 'success');
+        AUTH.redirectByRole(data.role);
+      } catch (error) {
+        Toast.show(error.message, 'error');
+      } finally {
+        Loading.button(btn, false);
+      }
+    });
   </script>
 </body>
 </html>

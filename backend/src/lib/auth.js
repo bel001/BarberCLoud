@@ -29,6 +29,10 @@ export function requireRole(event, allowedRoles) {
   }
 }
 
+export function getPrimaryRole(event) {
+  return getGroups(event)[0] || "ANONIMO";
+}
+
 export function getUser(event) {
   const claims = getClaims(event);
 

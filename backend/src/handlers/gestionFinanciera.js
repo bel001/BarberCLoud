@@ -1,21 +1,20 @@
 import { requireRole } from "../lib/auth.js";
-import { scanReservas } from "../lib/dynamodb.js";
+import * as repository from "../lib/dynamodb.js";
 import { ok, serverError } from "../lib/response.js";
+import { createFinanceService } from "../services/financeService.js";
 
-export async function handler(event) {
-  try {
-    requireRole(event, ["ADMIN"]);
+const financeService = createFinanceService({ repository });
 
-    const reservas = await scanReservas();
-    const reservasCliente = reservas.filter(item => item.pk?.startsWith("CLIENTE#"));
-    const activas = reservasCliente.filter(item => item.estado !== "CANCELADA");
+export function createGestionFinancieraHandler(service) {
+  return async function gestionFinancieraHandler(event) {
+    try {
+      requireRole(event, ["ADMIN"]);
 
-    return ok({
-      totalReservas: activas.length,
-      online: activas.filter(item => item.origen === "ONLINE").length,
-      presenciales: activas.filter(item => item.origen === "PRESENCIAL").length
-    });
-  } catch (error) {
-    return serverError(error);
-  }
+      return ok(await service.getReport());
+    } catch (error) {
+      return serverError(error);
+    }
+  };
 }
+
+export const handler = createGestionFinancieraHandler(financeService);

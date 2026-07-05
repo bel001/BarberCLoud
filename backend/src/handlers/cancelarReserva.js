@@ -1,54 +1,35 @@
-import { requireRole, getUser } from "../lib/auth.js";
-import { queryByPk, putItem } from "../lib/dynamodb.js";
+import { v4 as uuid } from "uuid";
+import { requireRole } from "../lib/auth.js";
+import * as repository from "../lib/dynamodb.js";
+import { audit } from "../lib/audit.js";
+import { publishReservationEvent } from "../lib/notifications.js";
 import { ok, badRequest, serverError } from "../lib/response.js";
+import { ServiceError } from "../services/errors.js";
+import { createReservationService } from "../services/reservationService.js";
 
-export async function handler(event) {
-  try {
-    requireRole(event, ["CLIENTE"]);
+const tableName = process.env.TABLE_NAME || "barbercloud-local";
 
-    const user = getUser(event);
-    const reservaId = event.pathParameters?.id;
+const reservationService = createReservationService({
+  repository,
+  auditLog: audit,
+  publishReservationEvent,
+  idGenerator: uuid,
+  tableName
+});
 
-    if (!reservaId) {
-      return badRequest("reservaId es obligatorio");
+export function createCancelarReservaHandler(service) {
+  return async function cancelarReservaHandler(event) {
+    try {
+      requireRole(event, ["CLIENTE"]);
+      return ok(await service.cancelReservation(event));
+    } catch (error) {
+      if (error instanceof ServiceError) {
+        return badRequest(error.message);
+      }
+
+      return serverError(error);
     }
-
-    const reservas = await queryByPk(`CLIENTE#${user.sub}`);
-
-    const reserva = reservas.find(item =>
-      item.tipo === "RESERVA" &&
-      item.reservaId === reservaId
-    );
-
-    if (!reserva) {
-      return badRequest("Reserva no encontrada para este cliente");
-    }
-
-    if (reserva.estado === "CANCELADA") {
-      return badRequest("La reserva ya se encuentra cancelada");
-    }
-
-    const reservaCancelada = {
-      ...reserva,
-      estado: "CANCELADA",
-      canceladoEn: new Date().toISOString()
-    };
-
-    await putItem(reservaCancelada);
-
-    if (reserva.barberoId) {
-      await putItem({
-        ...reservaCancelada,
-        pk: `BARBERO#${reserva.barberoId}`,
-        sk: `RESERVA#${reserva.fecha}#${reserva.hora}`
-      });
-    }
-
-    return ok({
-      message: "Reserva cancelada correctamente",
-      reservaId
-    });
-  } catch (error) {
-    return serverError(error);
-  }
+  };
 }
+
+export const handler = createCancelarReservaHandler(reservationService);

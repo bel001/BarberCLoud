@@ -1,79 +1,186 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="es" data-theme="dark">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BarberCloud | Reservas inteligentes para barberías</title>
   <link rel="stylesheet" href="assets/css/app.css">
+<script>
+  (function() {
+    const t = localStorage.getItem("barbercloud_theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", t);
+  })();
+</script>
 </head>
 <body>
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-mark">BC</span>
-      <span>BarberCloud</span>
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="brand">
+        <span class="brand-mark">BC</span>
+        <span>BarberCloud</span>
+      </a>
+      <nav class="header-nav">
+        <a href="index.html" class="nav-link active">Inicio</a>
+        <a href="reservar.html" class="nav-link">Reservar</a>
+        <a href="login.html" class="nav-link nav-cta">Ingresar</a>
+        <button class="theme-toggle" title="Cambiar tema">
+          <svg class="icon-sun hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+      </nav>
     </div>
-    <nav>
-      <a href="index.html">Inicio</a>
-      <a href="reservar.html">Reservar</a>
-      <a href="login.html" class="nav-cta">Ingresar</a>
-    </nav>
   </header>
 
   <section class="hero">
     <div class="hero-content">
-      <p class="eyebrow">Sistema premium de reservas para barbería</p>
-      <h1>Agenda tu corte sin llamadas, sin esperas y con atención profesional.</h1>
+      <p class="eyebrow">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+          <path d="M2 17l10 5 10-5"/>
+          <path d="M2 12l10 5 10-5"/>
+        </svg>
+        Sistema premium de reservas
+      </p>
+      <h1>Agenda tu <span>corte</span> sin llamadas, sin esperas</h1>
       <p class="hero-text">
-        Explora servicios, revisa disponibilidad y elige tu horario. Puedes ver toda la página sin cuenta;
-        solo necesitas iniciar sesión cuando confirmes tu cita.
+        Explora servicios, revisa disponibilidad en tiempo real y elige el horario que prefieras.
+        Todo desde tu teléfono, sin complicaciones.
       </p>
       <div class="hero-actions">
-        <a class="btn btn-primary" href="reservar.html">Ver horarios disponibles</a>
-        <a class="btn btn-secondary" href="register.html">Crear cuenta</a>
+        <a class="btn btn-primary btn-lg" href="reservar.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+            <line x1="16" y1="2" x2="16" y2="6"/>
+            <line x1="8" y1="2" x2="8" y2="6"/>
+            <line x1="3" y1="10" x2="21" y2="10"/>
+          </svg>
+          Ver horarios
+        </a>
+        <a class="btn btn-secondary btn-lg" href="register.html">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+            <circle cx="8.5" cy="7" r="4"/>
+            <line x1="20" y1="8" x2="20" y2="14"/>
+            <line x1="23" y1="11" x2="17" y2="11"/>
+          </svg>
+          Crear cuenta
+        </a>
       </div>
     </div>
     <div class="hero-card">
-      <h3>Hoy disponible</h3>
-      <div class="metric">
-        <span>09:00</span>
+      <h3>Horarios disponibles hoy</h3>
+      <div class="hero-metric">
+        <span class="hero-metric-time">09:00</span>
         <strong>Corte clásico</strong>
       </div>
-      <div class="metric">
-        <span>11:00</span>
+      <div class="hero-metric">
+        <span class="hero-metric-time">11:00</span>
         <strong>Fade premium</strong>
       </div>
-      <div class="metric">
-        <span>16:00</span>
-        <strong>Barba y perfilado</strong>
+      <div class="hero-metric">
+        <span class="hero-metric-time">15:00</span>
+        <strong>Barba profileada</strong>
+      </div>
+      <div class="hero-metric">
+        <span class="hero-metric-time">17:00</span>
+        <strong>Corte y barba</strong>
       </div>
     </div>
   </section>
 
-  <main class="container">
-    <section class="section-title">
-      <p class="eyebrow">Servicios</p>
-      <h2>Todo lo que una barbería moderna necesita</h2>
-    </section>
+  <section class="section">
+    <div class="container">
+      <div class="section-header">
+        <p class="eyebrow">Servicios</p>
+        <h2>Todo lo que necesitas</h2>
+        <p>Gestión completa para tu barbería: reservas online, agenda de barberos, punto de venta y reportes.</p>
+      </div>
 
-    <section class="cards">
-      <article class="card">
-        <h3>Reserva online</h3>
-        <p>El cliente puede ver horarios y confirmar su cita con una cuenta registrada.</p>
-      </article>
-      <article class="card">
-        <h3>Cita presencial</h3>
-        <p>La secretaria agenda clientes que ya existen en el sistema.</p>
-      </article>
-      <article class="card">
-        <h3>Agenda del barbero</h3>
-        <p>Cada barbero revisa sus citas asignadas sin ver información innecesaria.</p>
-      </article>
-    </section>
-  </main>
+      <div class="cards-grid">
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+          </div>
+          <h3>Reserva online</h3>
+          <p>Tus clientes eligen horario desde cualquier dispositivo. Reciben confirmación instantánea.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+              <circle cx="12" cy="7" r="4"/>
+            </svg>
+          </div>
+          <h3>Cita presencial</h3>
+          <p>La secretaria agenda clientes existentes. Ideal para reservas por teléfono.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+            </svg>
+          </div>
+          <h3>Agenda del barbero</h3>
+          <p>Cada profesional ve solo sus citas. Sin información innecesaria.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="1" x2="12" y2="23"/>
+              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+          </div>
+          <h3>Punto de venta</h3>
+          <p>Registra ventas y controla caja. Reportes financieros en tiempo real.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+            </svg>
+          </div>
+          <h3>Inventario</h3>
+          <p>Controla productos e insumos. Alertas cuando el stock está bajo.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 20V10"/>
+              <path d="M18 20V4"/>
+              <path d="M6 20v-4"/>
+            </svg>
+          </div>
+          <h3>Reportes</h3>
+          <p>Dashboard con métricas: reservas, ingresos, productos más vendidos.</p>
+        </div>
+      </div>
+    </div>
+  </section>
 
   <footer class="footer">
-    <span>BarberCloud</span>
+    <div class="brand">
+      <span class="brand-mark" style="width:32px;height:32px;font-size:0.8rem;">BC</span>
+      <span>BarberCloud</span>
+    </div>
     <span>Arquitectura serverless con AWS</span>
   </footer>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/utils.js"></script>
 </body>
 </html>

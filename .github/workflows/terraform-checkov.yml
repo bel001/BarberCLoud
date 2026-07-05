@@ -1,0 +1,55 @@
+name: Terraform y Checkov
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+      - feature/aws-diagrama-completo
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  terraform-checkov:
+    name: Validacion IaC
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v5
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Instalar dependencias backend
+        run: npm -C backend ci
+
+      - name: Ejecutar pruebas backend con cobertura
+        run: npm -C backend run test:coverage
+
+      - name: Configurar Terraform
+        uses: hashicorp/setup-terraform@v4
+        with:
+          terraform_version: 1.5.7
+
+      - name: Terraform fmt
+        run: terraform -chdir=iac fmt -check -recursive
+
+      - name: Terraform init
+        run: terraform -chdir=iac init -backend=false
+
+      - name: Terraform validate
+        run: terraform -chdir=iac validate
+
+      - name: Checkov IaC
+        uses: bridgecrewio/checkov-action@v12
+        with:
+          directory: iac
+          quiet: true
+          framework: terraform
