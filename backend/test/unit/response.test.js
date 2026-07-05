@@ -62,4 +62,12 @@ describe("response helpers", () => {
       error: "La operacion no pudo completarse de forma consistente"
     });
   });
+
+  it("devuelve error generico para errores desconocido", () => {
+    const unknown = new Error("error desconocido");
+    const response = serverError(unknown);
+
+    expect(response.statusCode).toBe(500);
+    expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
+  });
 });

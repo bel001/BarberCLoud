@@ -11,6 +11,7 @@ const dynamodbMocks = vi.hoisted(() => ({
 const auditMock = vi.hoisted(() => vi.fn());
 const sendReservationEmailMock = vi.hoisted(() => vi.fn());
 const cognitoSendMock = vi.hoisted(() => vi.fn());
+const publishReservationEventMock = vi.hoisted(() => vi.fn());
 
 const cognitoCommands = vi.hoisted(() => ({
   AdminAddUserToGroupCommand: vi.fn(function AdminAddUserToGroupCommand(input) {
@@ -35,7 +36,8 @@ vi.mock("../../src/lib/audit.js", () => ({
 
 vi.mock("../../src/lib/notifications.js", () => ({
   getSnsRecords: event => event?.Records?.map(record => JSON.parse(record.Sns.Message)) || [],
-  sendReservationEmail: sendReservationEmailMock
+  sendReservationEmail: sendReservationEmailMock,
+  publishReservationEvent: publishReservationEventMock
 }));
 
 vi.mock("@aws-sdk/client-cognito-identity-provider", () => ({
@@ -62,6 +64,7 @@ const { handler: notificarReservaHandler } = await import("../../src/handlers/no
 const { handler: notificarCancelacionHandler } = await import("../../src/handlers/notificarCancelacion.js");
 const { handler: postConfirmClienteHandler } = await import("../../src/handlers/postConfirmCliente.js");
 const { handler: sqsNotificationConsumerHandler } = await import("../../src/handlers/sqsNotificationConsumer.js");
+const { createNuevaReservaHandler } = await import("../../src/handlers/nuevaReserva.js");
 
 describe("handlers operativos del diagrama", () => {
   beforeEach(() => {
@@ -73,6 +76,7 @@ describe("handlers operativos del diagrama", () => {
     dynamodbMocks.scanReservas.mockResolvedValue([]);
     auditMock.mockResolvedValue(undefined);
     sendReservationEmailMock.mockResolvedValue({ sent: true });
+    publishReservationEventMock.mockResolvedValue({ MessageId: "msg-1" });
     cognitoSendMock.mockResolvedValue({});
   });
 
@@ -402,5 +406,62 @@ describe("handlers operativos del diagrama", () => {
     // Assert
     expect(response.statusCode).toBe(200);
     expect(sendReservationEmailMock).not.toHaveBeenCalled();
+  });
+});
+
+describe("nuevaReserva handler", () => {
+  const mockService = vi.hoisted(() => ({
+    createOnlineReservation: vi.fn()
+  }));
+
+  const nuevaReservaHandler = createNuevaReservaHandler(mockService);
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("crea reserva exitosamente para cliente", async () => {
+    mockService.createOnlineReservation.mockResolvedValue({ reservaId: "res-1" });
+
+    const event = lambdaEvent({
+      role: "CLIENTE",
+      user: { sub: "cliente-1", email: "cliente@demo.local" }
+    });
+
+    const response = await nuevaReservaHandler(event);
+
+    expect(response.statusCode).toBe(201);
+    expect(parseBody(response)).toEqual({ reservaId: "res-1" });
+  });
+
+  it("devuelve 400 cuando hay ServiceError", async () => {
+    const { ServiceError } = await import("../../src/services/errors.js");
+    mockService.createOnlineReservation.mockRejectedValue(new ServiceError("Datos invalidos"));
+
+    const event = lambdaEvent({ role: "CLIENTE" });
+    const response = await nuevaReservaHandler(event);
+
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "Datos invalidos" });
+  });
+
+  it("devuelve 400 cuando hay conflicto de horario", async () => {
+    mockService.createOnlineReservation.mockRejectedValue({ name: "TransactionCanceledException" });
+
+    const event = lambdaEvent({ role: "CLIENTE" });
+    const response = await nuevaReservaHandler(event);
+
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "Horario no disponible" });
+  });
+
+  it("devuelve 500 en error inesperado", async () => {
+    mockService.createOnlineReservation.mockRejectedValue(new Error("DB timeout"));
+
+    const event = lambdaEvent({ role: "CLIENTE" });
+    const response = await nuevaReservaHandler(event);
+
+    expect(response.statusCode).toBe(500);
+    expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 });
