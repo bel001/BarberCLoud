@@ -11,12 +11,7 @@ export default defineConfig({
         "src/lib/auth.js",
         "src/lib/notifications.js",
         "src/lib/response.js",
-        "src/handlers/cancelarReserva.js",
-        "src/handlers/consultarDisponibilidad.js",
-        "src/handlers/gestionClientes.js",
-        "src/handlers/gestionFinanciera.js",
-        "src/handlers/gestionPOS.js",
-        "src/handlers/nuevaReserva.js"
+        "src/handlers/**/*.js"
       ],
       exclude: [
         "src/local-server.js"
