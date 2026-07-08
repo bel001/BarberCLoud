@@ -371,6 +371,23 @@ h3 { font-size: clamp(1.3rem, 3vw, 1.6rem); font-weight: 600; }
   padding-right: 48px;
 }
 
+.form-input option,
+.form-select option {
+  background-color: var(--bg-card);
+  color: var(--text-primary);
+}
+
+.form-input option:checked,
+.form-select option:checked {
+  background-color: var(--accent);
+  color: #0a0a0f;
+}
+
+.form-input option:disabled,
+.form-select option:disabled {
+  color: var(--text-muted);
+}
+
 /* ==================== ALERTS ==================== */
 .alert {
   padding: 16px 20px;

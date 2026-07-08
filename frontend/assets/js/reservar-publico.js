@@ -23,6 +23,52 @@ async function cargarDisponibilidadPublica() {
   }
 }
 
+function panelRouteFor(role) {
+  const routes = {
+    CLIENTE: "cliente.html",
+    SECRETARIA: "secretaria.html",
+    BARBERO: "barbero.html",
+    ADMIN: "admin.html"
+  };
+
+  return routes[role] || "index.html";
+}
+
+function actualizarEstadoSesionReserva() {
+  const session = AUTH.getSession();
+  const sessionLink = document.getElementById("sessionLink");
+  const loginPrompt = document.getElementById("loginPrompt");
+  const reservaHint = document.getElementById("reservaHint");
+
+  if (!session?.token || !session?.role) {
+    if (loginPrompt) {
+      loginPrompt.classList.remove("hidden");
+    }
+    return;
+  }
+
+  if (sessionLink) {
+    sessionLink.href = panelRouteFor(session.role);
+    sessionLink.textContent = session.role === "CLIENTE" ? "Mis reservas" : "Mi panel";
+  }
+
+  if (loginPrompt) {
+    loginPrompt.classList.add("hidden");
+  }
+
+  if (reservaHint) {
+    reservaHint.innerHTML = `
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;vertical-align:middle;margin-right:8px;">
+        <circle cx="12" cy="12" r="10"/>
+        <polyline points="9 12 11 14 15 10"/>
+      </svg>
+      ${session.role === "CLIENTE"
+        ? "Tu sesión está activa. Al confirmar, la cita quedará registrada en tu cuenta."
+        : "Tu sesión está activa, pero solo una cuenta de cliente puede confirmar reservas online."}
+    `;
+  }
+}
+
 async function confirmarReservaPublica(event) {
   event.preventDefault();
   const btn = event.submitter;
@@ -69,6 +115,7 @@ async function confirmarReservaPublica(event) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  actualizarEstadoSesionReserva();
   cargarDisponibilidadPublica();
   document.getElementById("formReservaPublica").addEventListener("submit", confirmarReservaPublica);
 });

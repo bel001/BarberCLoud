@@ -19,7 +19,7 @@
       </a>
       <nav class="header-nav">
         <a href="index.html" class="nav-link">Inicio</a>
-        <a href="login.html" class="nav-link nav-cta">Ingresar</a>
+        <a href="login.html" class="nav-link nav-cta" id="sessionLink">Ingresar</a>
         <button class="theme-toggle" title="Cambiar tema">
           <svg class="icon-sun hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="5"/>
@@ -39,7 +39,7 @@
       <h1 style="margin-bottom: 32px;">Elige tu horario</h1>
 
       <div class="dashboard-card" style="margin-bottom: 24px;">
-        <p class="text-muted mb-4">
+        <p class="text-muted mb-4" id="reservaHint">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:20px;height:20px;vertical-align:middle;margin-right:8px;">
             <circle cx="12" cy="12" r="10"/>
             <line x1="12" y1="16" x2="12" y2="12"/>
@@ -84,7 +84,7 @@
         <div id="resultado" class="mt-4"></div>
       </div>
 
-      <div class="card" style="text-align:center;padding:24px;">
+      <div class="card" id="loginPrompt" style="text-align:center;padding:24px;">
         <p class="text-muted">¿Ya tienes cuenta?</p>
         <a class="btn btn-secondary" href="login.html">Iniciar sesión</a>
       </div>
