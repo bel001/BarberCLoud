@@ -83,6 +83,7 @@ app.post("/dev/login", (req, res) => {
   res.json({
     token: `local-${user.role}-${user.sub}`,
     role: user.role,
+    sub: user.sub,
     email: user.email,
     name: user.name
   });

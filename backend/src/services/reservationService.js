@@ -56,6 +56,14 @@ function buildReservationWrites({ reservaCliente, barberoId, fecha, hora, tableN
   ];
 }
 
+function getClientIdentity(user) {
+  const clienteId = user.sub || user.email || "cliente-desconocido";
+  const clienteCorreo = user.email || "";
+  const clienteNombre = user.name;
+
+  return { clienteId, clienteCorreo, clienteNombre };
+}
+
 export function createReservationService({
   repository,
   auditLog,
@@ -69,18 +77,19 @@ export function createReservationService({
       const user = getUser(event);
       const body = JSON.parse(event.body || "{}");
       const { servicioId, barberoId, fecha, hora } = validateOnlineReservationInput(body);
+      const { clienteId, clienteCorreo, clienteNombre } = getClientIdentity(user);
       const reservaId = `res_${idGenerator()}`;
       const now = clock().toISOString();
       const servicio = await repository.getItem(`SERVICIO#${servicioId}`, "PROFILE");
 
       const reservaCliente = {
-        pk: `CLIENTE#${user.sub}`,
+        pk: `CLIENTE#${clienteId}`,
         sk: `RESERVA#${fecha}#${hora}`,
         tipo: "RESERVA",
         reservaId,
-        clienteId: user.sub,
-        clienteNombre: user.name,
-        clienteCorreo: user.email,
+        clienteId,
+        clienteNombre,
+        clienteCorreo,
         servicioId,
         servicioNombre: servicio?.nombre || servicioId,
         precio: Number(servicio?.precio || 0),

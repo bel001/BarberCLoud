@@ -22,6 +22,24 @@ function createService(overrides = {}) {
   return { service, repository, auditLog, publishReservationEvent };
 }
 
+function onlineReservationEvent(claims = {}) {
+  return {
+    body: JSON.stringify({
+      servicioId: "corte-clasico",
+      barberoId: "barbero_carlos",
+      fecha: "2026-07-10",
+      hora: "10:00"
+    }),
+    requestContext: {
+      authorizer: {
+        jwt: {
+          claims
+        }
+      }
+    }
+  };
+}
+
 describe("reservationService integration con mocks", () => {
   it("crea reserva online para cliente y agenda de barbero", async () => {
     // Arrange
@@ -48,11 +66,49 @@ describe("reservationService integration con mocks", () => {
     const writes = repository.transactWrite.mock.calls[0][0];
     expect(writes).toHaveLength(2);
     expect(writes[0].Put.Item.pk).toBe("CLIENTE#cliente-demo");
+    expect(writes[0].Put.Item.clienteNombre).toBe("Cliente Demo");
+    expect(writes[0].Put.Item.clienteCorreo).toBe("cliente@demo.local");
     expect(writes[1].Put.Item.pk).toBe("BARBERO#barbero_carlos");
     expect(publishReservationEvent).toHaveBeenCalledWith("RESERVA_CREADA", expect.objectContaining({
       reservaId: "res_test-id",
       origen: "ONLINE"
     }));
+  });
+
+  it("crea reserva online usando email como identificador si el token no trae sub", async () => {
+    // Arrange
+    const { service, repository } = createService();
+    const event = onlineReservationEvent({ email: "cliente@demo.local" });
+
+    // Act
+    await service.createOnlineReservation(event);
+
+    // Assert
+    const writes = repository.transactWrite.mock.calls[0][0];
+    expect(writes[0].Put.Item).toMatchObject({
+      pk: "CLIENTE#cliente@demo.local",
+      clienteId: "cliente@demo.local",
+      clienteNombre: "cliente@demo.local",
+      clienteCorreo: "cliente@demo.local"
+    });
+  });
+
+  it("crea reserva online con identidad visible aunque el token no traiga datos de cliente", async () => {
+    // Arrange
+    const { service, repository } = createService();
+    const event = onlineReservationEvent();
+
+    // Act
+    await service.createOnlineReservation(event);
+
+    // Assert
+    const writes = repository.transactWrite.mock.calls[0][0];
+    expect(writes[0].Put.Item).toMatchObject({
+      pk: "CLIENTE#cliente-desconocido",
+      clienteId: "cliente-desconocido",
+      clienteNombre: "Usuario",
+      clienteCorreo: ""
+    });
   });
 
   it("crea reserva online usando defaults si el servicio no existe", async () => {

@@ -75,12 +75,18 @@
     document.getElementById('login-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = document.getElementById('login-btn');
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
 
       Loading.button(btn, true);
 
       try {
+        if (BARBERCLOUD_CONFIG.AUTH_MODE === 'cognito') {
+          AUTH.loginWithCognito();
+          return;
+        }
+
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+
         const response = await fetch(`${BARBERCLOUD_CONFIG.API_BASE_URL}/dev/login`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -95,7 +101,7 @@
 
         AUTH.saveSession(data);
         Toast.show('Sesión iniciada correctamente', 'success');
-        AUTH.redirectByRole(data.role);
+        AUTH.redirectAfterLogin(data);
       } catch (error) {
         Toast.show(error.message, 'error');
       } finally {

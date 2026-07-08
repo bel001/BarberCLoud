@@ -99,6 +99,33 @@ async function crearPersonal(event) {
   }
 }
 
+function getClienteReserva(cita) {
+  return cita.clienteNombre || cita.clienteCorreo || cita.clienteId || "Cliente sin nombre";
+}
+
+function renderAgendaGlobal(citas) {
+  const container = document.getElementById("agendaGlobal");
+
+  if (!container) return;
+
+  if (citas.length === 0) {
+    container.innerHTML = `<p class="text-muted text-sm">No hay citas registradas.</p>`;
+    return;
+  }
+
+  container.innerHTML = citas.slice(0, 6).map(cita => `
+    <div class="list-item">
+      <div class="list-item-info">
+        <div class="list-item-title">${escapeHtml(getClienteReserva(cita))}</div>
+        <div class="list-item-subtitle">
+          ${escapeHtml(cita.servicioNombre || cita.servicioId || "Servicio")} · ${escapeHtml(cita.fecha)} · ${escapeHtml(cita.hora)}
+        </div>
+      </div>
+      <span class="badge badge-${cita.estado === "CANCELADA" ? "danger" : "success"}">${escapeHtml(cita.estado || "CONFIRMADA")}</span>
+    </div>
+  `).join("");
+}
+
 async function cargarGlobal() {
   try {
     const [agenda, inventario, insumos, pos] = await Promise.all([
@@ -112,6 +139,7 @@ async function cargarGlobal() {
     const totalProductos = (inventario.inventario || []).length;
     const totalConsumos = (insumos.insumos || []).length;
     const cajaTotal = pos.total || 0;
+    const citas = agenda.citas || [];
 
     document.getElementById("global").innerHTML = `
       <div class="stat-card">
@@ -131,6 +159,8 @@ async function cargarGlobal() {
         <span class="stat-value">S/ ${cajaTotal}</span>
       </div>
     `;
+
+    renderAgendaGlobal(citas);
   } catch (error) {
     Toast.show("Error al cargar datos globales: " + error.message, "error");
   }

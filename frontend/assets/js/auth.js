@@ -39,6 +39,17 @@ const AUTH = {
     window.location.href = routes[role] || "index.html";
   },
 
+  redirectAfterLogin(session) {
+    const pendiente = localStorage.getItem("reserva_pendiente");
+
+    if (pendiente && session.role === "CLIENTE") {
+      window.location.href = "cliente.html";
+      return;
+    }
+
+    this.redirectByRole(session.role);
+  },
+
   loginWithCognito() {
     const params = new URLSearchParams({
       client_id: BARBERCLOUD_CONFIG.COGNITO_CLIENT_ID,
@@ -107,11 +118,12 @@ const AUTH = {
       token: tokens.id_token,
       accessToken: tokens.access_token,
       role,
+      sub: claims.sub,
       email: claims.email,
       name: claims.name || claims.email
     });
 
-    this.redirectByRole(role);
+    this.redirectAfterLogin({ role });
   }
 };
 
@@ -143,11 +155,5 @@ async function iniciarSesion(event) {
 
   AUTH.saveSession(data);
 
-  const pendiente = localStorage.getItem("reserva_pendiente");
-  if (pendiente && data.role === "CLIENTE") {
-    window.location.href = "cliente.html";
-    return;
-  }
-
-  AUTH.redirectByRole(data.role);
+  AUTH.redirectAfterLogin(data);
 }

@@ -1,5 +1,9 @@
 const sessionBarbero = AUTH.requireSession();
 
+function getClienteCita(cita) {
+  return cita.clienteNombre || cita.clienteCorreo || cita.clienteId || "Cliente sin nombre";
+}
+
 async function cargarAgenda() {
   try {
     const data = await API.get("/barbero/agenda", sessionBarbero.token);
@@ -24,7 +28,7 @@ async function cargarAgenda() {
     container.innerHTML = citas.map(cita => `
       <div class="list-item">
         <div class="list-item-info">
-          <div class="list-item-title">${escapeHtml(cita.clienteNombre)}</div>
+          <div class="list-item-title">${escapeHtml(getClienteCita(cita))}</div>
           <div class="list-item-subtitle">
             📅 ${escapeHtml(cita.fecha)} • ⏰ ${escapeHtml(cita.hora)}
           </div>
