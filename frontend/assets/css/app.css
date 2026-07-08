@@ -371,6 +371,12 @@ h3 { font-size: clamp(1.3rem, 3vw, 1.6rem); font-weight: 600; }
   padding-right: 48px;
 }
 
+.form-input option,
+.form-select option {
+  background: var(--bg-card);
+  color: var(--text-primary);
+}
+
 /* ==================== ALERTS ==================== */
 .alert {
   padding: 16px 20px;
