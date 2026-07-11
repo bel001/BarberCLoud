@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BarberCloud | Recompensas</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/barbero-panel.css">
+
+<script>
+  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
+</script>
+</head>
+<body>
+  <div class="barber-shell">
+    <aside class="barber-sidebar">
+      <div class="barber-sidebar-brand">
+        <span class="material-symbols-outlined">content_cut</span>
+        <span>BarberCloud</span>
+      </div>
+
+      <div class="barber-identity">
+        <div class="barber-identity-avatar" id="clienteAvatar">C</div>
+        <div>
+          <p class="barber-identity-name" id="clienteNombre">Cliente</p>
+          <p class="barber-identity-role">Cliente</p>
+        </div>
+      </div>
+
+      <nav class="barber-nav">
+        <a href="cliente.html" class="barber-nav-link">
+          <span class="material-symbols-outlined">dashboard</span>
+          <span>Mi panel</span>
+        </a>
+        <a href="mis-citas.html" class="barber-nav-link">
+          <span class="material-symbols-outlined">event</span>
+          <span>Mis citas</span>
+        </a>
+        <a href="recompensas.html" class="barber-nav-link active">
+          <span class="material-symbols-outlined">redeem</span>
+          <span>Recompensas</span>
+        </a>
+        <a href="cuenta.html" class="barber-nav-link">
+          <span class="material-symbols-outlined">person</span>
+          <span>Mi cuenta</span>
+        </a>
+        <a href="reservar.html" class="barber-nav-link">
+          <span class="material-symbols-outlined">add_circle</span>
+          <span>Nueva reserva</span>
+        </a>
+      </nav>
+
+      <div class="barber-sidebar-footer">
+        <button class="theme-toggle" title="Cambiar tema">
+          <svg class="icon-sun hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <button type="button" class="nav-link nav-button" data-logout>
+          <span class="material-symbols-outlined">logout</span>
+          Salir
+        </button>
+      </div>
+    </aside>
+
+    <main class="barber-main">
+      <div class="barber-topbar">
+        <h2>Recompensas</h2>
+        <p>Ganas 10 puntos por cada reserva confirmada.</p>
+      </div>
+
+      <div class="barber-panel mb-4" style="max-width: 320px;">
+        <div class="barber-panel-header">
+          <span class="material-symbols-outlined">redeem</span>
+          <h3>Puntos disponibles</h3>
+        </div>
+        <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="statPuntosRecompensas">0</p>
+      </div>
+
+      <div class="barber-grid">
+        <div class="barber-panel">
+          <div class="barber-panel-header">
+            <span class="material-symbols-outlined">card_giftcard</span>
+            <h3>Recompensas disponibles</h3>
+          </div>
+          <div id="catalogoRecompensas" class="flex flex-col gap-3"></div>
+        </div>
+
+        <div class="barber-panel">
+          <div class="barber-panel-header">
+            <span class="material-symbols-outlined">bar_chart</span>
+            <h3>Historial de puntos ganados</h3>
+          </div>
+          <div id="historialPuntos" class="flex flex-col gap-2"></div>
+        </div>
+
+        <div class="barber-panel" style="grid-column: 1 / -1;">
+          <div class="barber-panel-header">
+            <span class="material-symbols-outlined">confirmation_number</span>
+            <h3>Historial de canjes</h3>
+          </div>
+          <div id="historialCanjes" class="flex flex-col gap-2"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/utils.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/recompensas.js"></script>
+</body>
+</html>
