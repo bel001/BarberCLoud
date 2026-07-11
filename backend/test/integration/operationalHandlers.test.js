@@ -3,6 +3,7 @@ import { lambdaEvent, parseBody } from "../helpers/events.js";
 
 const dynamodbMocks = vi.hoisted(() => ({
   putItem: vi.fn(),
+  getItem: vi.fn(),
   queryByPk: vi.fn(),
   scanByTipo: vi.fn(),
   scanReservas: vi.fn()
@@ -24,6 +25,9 @@ const cognitoCommands = vi.hoisted(() => ({
     this.input = input;
   }),
   AdminDeleteUserCommand: vi.fn(function AdminDeleteUserCommand(input) {
+    this.input = input;
+  }),
+  AdminDisableUserCommand: vi.fn(function AdminDisableUserCommand(input) {
     this.input = input;
   }),
   AdminSetUserPasswordCommand: vi.fn(function AdminSetUserPasswordCommand(input) {
@@ -55,6 +59,8 @@ vi.mock("uuid", () => ({
 }));
 
 const { handler: agendaHandler } = await import("../../src/handlers/gestionAgendaBarbero.js");
+const { handler: cuentaHandler } = await import("../../src/handlers/gestionCuenta.js");
+const { handler: actividadHandler } = await import("../../src/handlers/gestionActividad.js");
 const { handler: insumosHandler } = await import("../../src/handlers/gestionInsumos.js");
 const { handler: inventarioHandler } = await import("../../src/handlers/gestionInventario.js");
 const { handler: negocioHandler } = await import("../../src/handlers/gestionNegocio.js");
@@ -74,6 +80,7 @@ describe("handlers operativos del diagrama", () => {
     vi.clearAllMocks();
     delete process.env.USER_POOL_ID;
     dynamodbMocks.putItem.mockResolvedValue(undefined);
+    dynamodbMocks.getItem.mockResolvedValue(null);
     dynamodbMocks.queryByPk.mockResolvedValue([]);
     dynamodbMocks.scanByTipo.mockResolvedValue([]);
     dynamodbMocks.scanReservas.mockResolvedValue([]);
@@ -418,6 +425,21 @@ describe("handlers operativos del diagrama", () => {
     expect(parseBody(response)).toEqual({ error: "nombre y precio son obligatorios" });
   });
 
+  it("administrador consulta el flujo de actividad reciente", async () => {
+    // Arrange
+    dynamodbMocks.scanByTipo.mockResolvedValue([
+      { tipo: "AUDIT_LOG", action: "RESERVA_CREAR", creadoEn: "2026-07-01T10:00:00.000Z" },
+      { tipo: "AUDIT_LOG", action: "RESERVA_CANCELAR", creadoEn: "2026-07-02T10:00:00.000Z" }
+    ]);
+
+    // Act
+    const response = await actividadHandler(lambdaEvent({ role: "ADMIN" }));
+
+    // Assert
+    expect(dynamodbMocks.scanByTipo).toHaveBeenCalledWith("AUDIT_LOG");
+    expect(parseBody(response).actividad[0].action).toBe("RESERVA_CANCELAR");
+  });
+
   it("mapea error de negocio a 500", async () => {
     // Arrange
     dynamodbMocks.scanByTipo.mockRejectedValue(new Error("fallo negocio"));
@@ -516,6 +538,83 @@ describe("handlers operativos del diagrama", () => {
     expect(dynamodbMocks.putItem).not.toHaveBeenCalled();
   });
 
+  it("administrador lista el personal (barberos y usuarios internos)", async () => {
+    // Arrange
+    dynamodbMocks.scanByTipo
+      .mockResolvedValueOnce([{ tipo: "BARBERO", nombre: "Carlos" }])
+      .mockResolvedValueOnce([{ tipo: "USUARIO_INTERNO", nombre: "Secretaria Demo" }]);
+
+    // Act
+    const response = await personalHandler(lambdaEvent({ method: "GET", role: "ADMIN" }));
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(parseBody(response)).toEqual({
+      personal: [{ tipo: "BARBERO", nombre: "Carlos" }, { tipo: "USUARIO_INTERNO", nombre: "Secretaria Demo" }]
+    });
+  });
+
+  it("administrador da de baja a un usuario y lo deshabilita en Cognito", async () => {
+    // Arrange
+    process.env.USER_POOL_ID = "pool-1";
+    dynamodbMocks.getItem.mockResolvedValue({
+      pk: "BARBERO#barbero-1",
+      sk: "PROFILE",
+      nombre: "Carlos",
+      email: "carlos@demo.local",
+      rol: "BARBERO",
+      estado: "ACTIVO"
+    });
+    const event = lambdaEvent({
+      method: "POST",
+      rawPath: "/admin/personal/barbero-1/baja",
+      role: "ADMIN",
+      body: { userId: "barbero-1", rol: "BARBERO" }
+    });
+
+    // Act
+    const response = await personalHandler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(200);
+    expect(parseBody(response)).toEqual({ message: "Usuario dado de baja correctamente", userId: "barbero-1" });
+    expect(cognitoCommands.AdminDisableUserCommand).toHaveBeenCalledWith({
+      UserPoolId: "pool-1",
+      Username: "carlos@demo.local"
+    });
+    expect(dynamodbMocks.putItem).toHaveBeenCalledWith(expect.objectContaining({
+      nombre: "Carlos",
+      estado: "INACTIVO"
+    }));
+  });
+
+  it("rechaza dar de baja a un usuario inexistente", async () => {
+    // Arrange
+    dynamodbMocks.getItem.mockResolvedValue(null);
+    const event = lambdaEvent({
+      method: "POST",
+      rawPath: "/admin/personal/barbero-1/baja",
+      role: "ADMIN",
+      body: { userId: "barbero-1", rol: "BARBERO" }
+    });
+
+    // Act
+    const response = await personalHandler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "Usuario no encontrado" });
+  });
+
+  it("rechaza dar de baja sin userId o rol", async () => {
+    // Act
+    const response = await personalHandler(lambdaEvent({ method: "POST", rawPath: "/admin/personal/x/baja", role: "ADMIN", body: {} }));
+
+    // Assert
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "userId y rol son obligatorios" });
+  });
+
   it("manage services resume servicios e inventario", async () => {
     // Arrange
     dynamodbMocks.scanByTipo
@@ -602,16 +701,89 @@ describe("handlers operativos del diagrama", () => {
     expect(response.statusCode).toBe(403);
   });
 
-  it("cliente lista solo sus reservas", async () => {
+  it("cliente lista solo sus reservas junto con sus puntos de lealtad", async () => {
     // Arrange
-    dynamodbMocks.queryByPk.mockResolvedValue([{ tipo: "RESERVA", reservaId: "res-1" }, { tipo: "CLIENTE" }]);
+    dynamodbMocks.queryByPk.mockResolvedValue([{ tipo: "RESERVA", reservaId: "res-1" }, { tipo: "CLIENTE", puntos: 30 }]);
 
     // Act
     const response = await misReservasHandler(lambdaEvent({ role: "CLIENTE", user: { sub: "cliente-1" } }));
 
     // Assert
     expect(dynamodbMocks.queryByPk).toHaveBeenCalledWith("CLIENTE#cliente-1");
-    expect(parseBody(response)).toEqual([{ tipo: "RESERVA", reservaId: "res-1" }]);
+    expect(parseBody(response)).toEqual({ reservas: [{ tipo: "RESERVA", reservaId: "res-1" }], canjes: [], puntos: 30 });
+  });
+
+  it("cliente sin perfil de puntos aun ve 0", async () => {
+    // Arrange
+    dynamodbMocks.queryByPk.mockResolvedValue([{ tipo: "RESERVA", reservaId: "res-1" }]);
+
+    // Act
+    const response = await misReservasHandler(lambdaEvent({ role: "CLIENTE", user: { sub: "cliente-1" } }));
+
+    // Assert
+    expect(parseBody(response)).toEqual({ reservas: [{ tipo: "RESERVA", reservaId: "res-1" }], canjes: [], puntos: 0 });
+  });
+
+  it("cliente ve su historial de canjes de recompensas", async () => {
+    // Arrange
+    dynamodbMocks.queryByPk.mockResolvedValue([
+      { tipo: "CANJE", codigo: "CANJE-ABC12345", puntosUsados: 100 },
+      { tipo: "CLIENTE", puntos: 10 }
+    ]);
+
+    // Act
+    const response = await misReservasHandler(lambdaEvent({ role: "CLIENTE", user: { sub: "cliente-1" } }));
+
+    // Assert
+    expect(parseBody(response)).toEqual({ reservas: [], canjes: [{ tipo: "CANJE", codigo: "CANJE-ABC12345", puntosUsados: 100 }], puntos: 10 });
+  });
+
+  it("cliente obtiene sus datos de cuenta", async () => {
+    // Arrange
+    dynamodbMocks.getItem.mockResolvedValue({ nombre: "Cliente Demo", email: "cliente@demo.local", puntos: 40 });
+
+    // Act
+    const response = await cuentaHandler(lambdaEvent({ method: "GET", role: "CLIENTE", user: { sub: "cliente-1" } }));
+
+    // Assert
+    expect(dynamodbMocks.getItem).toHaveBeenCalledWith("CLIENTE#cliente-1", "PROFILE");
+    expect(parseBody(response)).toEqual({ nombre: "Cliente Demo", email: "cliente@demo.local" });
+  });
+
+  it("cliente sin perfil ve los datos de su sesion JWT", async () => {
+    // Arrange
+    dynamodbMocks.getItem.mockResolvedValue(null);
+
+    // Act
+    const response = await cuentaHandler(lambdaEvent({ method: "GET", role: "CLIENTE", user: { sub: "cliente-1", name: "Cliente JWT", email: "jwt@demo.local" } }));
+
+    // Assert
+    expect(parseBody(response)).toEqual({ nombre: "Cliente JWT", email: "jwt@demo.local" });
+  });
+
+  it("cliente actualiza su nombre sin perder los puntos existentes", async () => {
+    // Arrange
+    dynamodbMocks.getItem.mockResolvedValue({ nombre: "Viejo Nombre", email: "cliente@demo.local", puntos: 40 });
+
+    // Act
+    const response = await cuentaHandler(lambdaEvent({ method: "PUT", role: "CLIENTE", user: { sub: "cliente-1" }, body: { nombre: "Nombre Nuevo" } }));
+
+    // Assert
+    expect(parseBody(response)).toEqual({ message: "Datos actualizados correctamente", nombre: "Nombre Nuevo" });
+    expect(dynamodbMocks.putItem).toHaveBeenCalledWith(expect.objectContaining({
+      pk: "CLIENTE#cliente-1",
+      nombre: "Nombre Nuevo",
+      puntos: 40
+    }));
+  });
+
+  it("rechaza actualizar cuenta sin nombre", async () => {
+    // Act
+    const response = await cuentaHandler(lambdaEvent({ method: "PUT", role: "CLIENTE", user: { sub: "cliente-1" }, body: {} }));
+
+    // Assert
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "nombre es obligatorio" });
   });
 
   it("cliente recibe error interno si falla listado de reservas", async () => {
