@@ -55,6 +55,36 @@ describe("reservationService integration con mocks", () => {
     }));
   });
 
+  it("otorga puntos de lealtad al crear una reserva online", async () => {
+    // Arrange
+    const repository = createRepositoryMock({
+      getItem: vi.fn((pk) => pk.startsWith("SERVICIO#")
+        ? Promise.resolve({ nombre: "Corte clasico", precio: 30 })
+        : Promise.resolve({ nombre: "Cliente Demo", email: "cliente@demo.local", puntos: 20 }))
+    });
+    const { service } = createService({ repository });
+    const event = lambdaEvent({
+      method: "POST",
+      body: {
+        servicioId: "corte-clasico",
+        barberoId: "barbero_carlos",
+        fecha: "2026-07-10",
+        hora: "10:00"
+      }
+    });
+
+    // Act
+    await service.createOnlineReservation(event);
+
+    // Assert
+    expect(repository.putItem).toHaveBeenCalledWith(expect.objectContaining({
+      pk: "CLIENTE#cliente-demo",
+      sk: "PROFILE",
+      tipo: "CLIENTE",
+      puntos: 30
+    }));
+  });
+
   it("crea reserva online usando defaults si el servicio no existe", async () => {
     // Arrange
     const repository = createRepositoryMock({
@@ -80,6 +110,26 @@ describe("reservationService integration con mocks", () => {
       servicioNombre: "servicio-desconocido",
       precio: 0
     });
+  });
+
+  it("rechaza reserva online con fecha y hora que ya paso", async () => {
+    // Arrange
+    const { service } = createService();
+    const event = lambdaEvent({
+      method: "POST",
+      body: {
+        servicioId: "corte-clasico",
+        barberoId: "barbero_carlos",
+        fecha: "2026-07-01",
+        hora: "09:00"
+      }
+    });
+
+    // Act
+    const action = () => service.createOnlineReservation(event);
+
+    // Assert
+    await expect(action).rejects.toThrow("No se puede reservar en una fecha y hora que ya paso");
   });
 
   it("rechaza reserva online sin campos obligatorios", async () => {
@@ -235,6 +285,126 @@ describe("reservationService integration con mocks", () => {
 
     // Assert
     expect(repository.transactWrite.mock.calls[0][0]).toHaveLength(1);
+  });
+
+  it("reprograma una reserva a nueva fecha y hora", async () => {
+    // Arrange
+    const repository = createRepositoryMock({
+      queryByPk: vi.fn().mockResolvedValue([
+        {
+          tipo: "RESERVA",
+          reservaId: "res_123",
+          pk: "CLIENTE#cliente-demo",
+          sk: "RESERVA#2026-07-10#10:00",
+          barberoId: "barbero_carlos",
+          fecha: "2026-07-10",
+          hora: "10:00",
+          estado: "CONFIRMADA"
+        }
+      ])
+    });
+    const { service, publishReservationEvent } = createService({ repository });
+    const event = lambdaEvent({
+      method: "POST",
+      pathParameters: { id: "res_123" },
+      body: { fecha: "2026-07-11", hora: "15:00" }
+    });
+
+    // Act
+    const result = await service.rescheduleReservation(event);
+
+    // Assert
+    expect(result).toEqual({ message: "Reserva reprogramada correctamente", reservaId: "res_123" });
+    const writes = repository.transactWrite.mock.calls[0][0];
+    expect(writes).toHaveLength(4);
+    expect(writes[0].Put.Item).toMatchObject({ pk: "CLIENTE#cliente-demo", sk: "RESERVA#2026-07-10#10:00", estado: "CANCELADA" });
+    expect(writes[1].Put.Item).toMatchObject({ pk: "CLIENTE#cliente-demo", sk: "RESERVA#2026-07-11#15:00", estado: "CONFIRMADA", fecha: "2026-07-11", hora: "15:00" });
+    expect(writes[2].Put.Item).toMatchObject({ pk: "BARBERO#barbero_carlos", sk: "RESERVA#2026-07-10#10:00", estado: "CANCELADA" });
+    expect(writes[3].Put.Item).toMatchObject({ pk: "BARBERO#barbero_carlos", sk: "RESERVA#2026-07-11#15:00", estado: "CONFIRMADA" });
+    expect(publishReservationEvent).toHaveBeenCalledWith("RESERVA_REPROGRAMADA", expect.objectContaining({ reservaId: "res_123", fecha: "2026-07-11", hora: "15:00" }));
+  });
+
+  it("rechaza reprogramar a la misma fecha y hora", async () => {
+    // Arrange
+    const repository = createRepositoryMock({
+      queryByPk: vi.fn().mockResolvedValue([
+        { tipo: "RESERVA", reservaId: "res_123", fecha: "2026-07-10", hora: "10:00", estado: "CONFIRMADA" }
+      ])
+    });
+    const { service } = createService({ repository });
+    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" }, body: { fecha: "2026-07-10", hora: "10:00" } });
+
+    // Act
+    const action = () => service.rescheduleReservation(event);
+
+    // Assert
+    await expect(action).rejects.toThrow("La nueva fecha y hora deben ser distintas a la actual");
+  });
+
+  it("rechaza reprogramar a una fecha y hora que ya paso", async () => {
+    // Arrange
+    const { service } = createService();
+    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" }, body: { fecha: "2026-07-01", hora: "09:00" } });
+
+    // Act
+    const action = () => service.rescheduleReservation(event);
+
+    // Assert
+    await expect(action).rejects.toThrow("No se puede reservar en una fecha y hora que ya paso");
+  });
+
+  it("rechaza reprogramar una reserva inexistente", async () => {
+    // Arrange
+    const repository = createRepositoryMock({ queryByPk: vi.fn().mockResolvedValue([]) });
+    const { service } = createService({ repository });
+    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" }, body: { fecha: "2026-07-11", hora: "15:00" } });
+
+    // Act
+    const action = () => service.rescheduleReservation(event);
+
+    // Assert
+    await expect(action).rejects.toThrow("Reserva no encontrada para este cliente");
+  });
+
+  it("rechaza reprogramar una reserva ya cancelada", async () => {
+    // Arrange
+    const repository = createRepositoryMock({
+      queryByPk: vi.fn().mockResolvedValue([
+        { tipo: "RESERVA", reservaId: "res_123", fecha: "2026-07-10", hora: "10:00", estado: "CANCELADA" }
+      ])
+    });
+    const { service } = createService({ repository });
+    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" }, body: { fecha: "2026-07-11", hora: "15:00" } });
+
+    // Act
+    const action = () => service.rescheduleReservation(event);
+
+    // Assert
+    await expect(action).rejects.toThrow("La reserva ya se encuentra cancelada");
+  });
+
+  it("rechaza reprogramar sin fecha y hora", async () => {
+    // Arrange
+    const { service } = createService();
+    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" }, body: {} });
+
+    // Act
+    const action = () => service.rescheduleReservation(event);
+
+    // Assert
+    await expect(action).rejects.toThrow("fecha y hora son obligatorios");
+  });
+
+  it("rechaza reprogramar sin reservaId", async () => {
+    // Arrange
+    const { service } = createService();
+    const event = lambdaEvent({ method: "POST", body: { fecha: "2026-07-11", hora: "15:00" } });
+
+    // Act
+    const action = () => service.rescheduleReservation(event);
+
+    // Assert
+    await expect(action).rejects.toThrow("reservaId es obligatorio");
   });
 
   it("secretaria crea cita presencial para cliente existente", async () => {

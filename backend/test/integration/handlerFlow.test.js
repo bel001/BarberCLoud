@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createGestionClientesHandler } from "../../src/handlers/gestionClientes.js";
 import { createGestionFinancieraHandler } from "../../src/handlers/gestionFinanciera.js";
 import { createGestionPOSHandler } from "../../src/handlers/gestionPOS.js";
+import { createGestionCajaHandler } from "../../src/handlers/gestionCaja.js";
 import { createCancelarReservaHandler } from "../../src/handlers/cancelarReserva.js";
 import { createConsultarDisponibilidadHandler } from "../../src/handlers/consultarDisponibilidad.js";
 import { ServiceError } from "../../src/services/errors.js";
@@ -91,6 +92,59 @@ describe("handlers integration con servicios inyectados", () => {
     expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 
+  it("abre caja mediante el handler de gestion de caja", async () => {
+    // Arrange
+    const service = {
+      abrirCaja: vi.fn().mockResolvedValue({ message: "Caja abierta correctamente", sesionId: "sesion_1", montoInicial: 50 }),
+      cerrarCaja: vi.fn()
+    };
+    const handler = createGestionCajaHandler(service);
+    const event = lambdaEvent({ method: "POST", rawPath: "/secretaria/caja/abrir", role: "SECRETARIA", body: { montoInicial: 50 } });
+
+    // Act
+    const response = await handler(event);
+
+    // Assert
+    expect(service.abrirCaja).toHaveBeenCalledWith(event);
+    expect(response.statusCode).toBe(201);
+    expect(parseBody(response)).toEqual({ message: "Caja abierta correctamente", sesionId: "sesion_1", montoInicial: 50 });
+  });
+
+  it("cierra caja mediante el handler de gestion de caja", async () => {
+    // Arrange
+    const service = {
+      abrirCaja: vi.fn(),
+      cerrarCaja: vi.fn().mockResolvedValue({ message: "Caja cerrada correctamente", montoEsperado: 130, montoContado: 125, diferencia: -5 })
+    };
+    const handler = createGestionCajaHandler(service);
+    const event = lambdaEvent({ method: "POST", rawPath: "/secretaria/caja/cerrar", role: "SECRETARIA", body: { montoContado: 125 } });
+
+    // Act
+    const response = await handler(event);
+
+    // Assert
+    expect(service.cerrarCaja).toHaveBeenCalledWith(event);
+    expect(response.statusCode).toBe(201);
+    expect(parseBody(response)).toEqual({ message: "Caja cerrada correctamente", montoEsperado: 130, montoContado: 125, diferencia: -5 });
+  });
+
+  it("mapea error de validacion de caja a bad request", async () => {
+    // Arrange
+    const service = {
+      abrirCaja: vi.fn().mockRejectedValue(new ServiceError("Ya existe una caja abierta para hoy")),
+      cerrarCaja: vi.fn()
+    };
+    const handler = createGestionCajaHandler(service);
+    const event = lambdaEvent({ method: "POST", rawPath: "/secretaria/caja/abrir", role: "SECRETARIA", body: {} });
+
+    // Act
+    const response = await handler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "Ya existe una caja abierta para hoy" });
+  });
+
   it("finanzas solo permite administrador y devuelve reporte", async () => {
     // Arrange
     const service = {
@@ -112,6 +166,31 @@ describe("handlers integration con servicios inyectados", () => {
     });
   });
 
+  it("finanzas devuelve el dashboard financiero completo en la ruta dedicada", async () => {
+    // Arrange
+    const service = {
+      getDashboard: vi.fn().mockResolvedValue({
+        totalReservas: 2,
+        ingresosEstimados: 50,
+        ingresosNetos: 40,
+        ingresosPorMes: [{ mes: "2026-07", ingresos: 50 }],
+        gananciasPorBarbero: [{ barberoId: "barbero_carlos", ganancias: 50 }],
+        valorInventario: 200,
+        costosInsumos: 10
+      })
+    };
+    const handler = createGestionFinancieraHandler(service);
+    const event = lambdaEvent({ method: "GET", role: "ADMIN", rawPath: "/admin/dashboard-financiero" });
+
+    // Act
+    const response = await handler(event);
+
+    // Assert
+    expect(service.getDashboard).toHaveBeenCalledTimes(1);
+    expect(response.statusCode).toBe(200);
+    expect(parseBody(response).ingresosNetos).toBe(40);
+  });
+
   it("mapea error de finanzas a error interno", async () => {
     // Arrange
     const service = {
@@ -125,6 +204,94 @@ describe("handlers integration con servicios inyectados", () => {
     // Assert
     expect(response.statusCode).toBe(500);
     expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
+  });
+
+  it("secretaria registra un cliente rapido", async () => {
+    // Arrange
+    const repository = {
+      findClienteByEmail: vi.fn().mockResolvedValue(null),
+      putItem: vi.fn().mockResolvedValue(undefined)
+    };
+    const auditLog = vi.fn().mockResolvedValue(undefined);
+    const handler = createGestionClientesHandler({ service: { createPresentialReservation: vi.fn() }, repository, auditLog });
+    const event = lambdaEvent({
+      method: "POST",
+      rawPath: "/secretaria/clientes",
+      role: "SECRETARIA",
+      body: { nombre: "Nuevo Cliente", email: "nuevo@demo.local", telefono: "999999999" }
+    });
+
+    // Act
+    const response = await handler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(201);
+    expect(parseBody(response).message).toBe("Cliente registrado correctamente");
+    expect(repository.putItem).toHaveBeenCalledWith(expect.objectContaining({
+      tipo: "CLIENTE",
+      nombre: "Nuevo Cliente",
+      email: "nuevo@demo.local",
+      telefono: "999999999"
+    }));
+    expect(auditLog).toHaveBeenCalled();
+  });
+
+  it("secretaria no puede registrar un cliente con correo duplicado", async () => {
+    // Arrange
+    const repository = {
+      findClienteByEmail: vi.fn().mockResolvedValue({ clienteId: "cliente-1" })
+    };
+    const handler = createGestionClientesHandler({ service: {}, repository, auditLog: vi.fn() });
+    const event = lambdaEvent({
+      method: "POST",
+      rawPath: "/secretaria/clientes",
+      role: "SECRETARIA",
+      body: { nombre: "Duplicado", email: "existe@demo.local" }
+    });
+
+    // Act
+    const response = await handler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "Ya existe un cliente registrado con ese correo" });
+  });
+
+  it("secretaria recibe validacion al registrar cliente sin nombre o email", async () => {
+    // Arrange
+    const handler = createGestionClientesHandler({ service: {}, repository: {}, auditLog: vi.fn() });
+    const event = lambdaEvent({ method: "POST", rawPath: "/secretaria/clientes", role: "SECRETARIA", body: {} });
+
+    // Act
+    const response = await handler(event);
+
+    // Assert
+    expect(response.statusCode).toBe(400);
+    expect(parseBody(response)).toEqual({ error: "nombre y email son obligatorios" });
+  });
+
+  it("secretaria consulta el historial de reservas de un cliente", async () => {
+    // Arrange
+    const repository = {
+      queryByPk: vi.fn().mockResolvedValue([
+        { tipo: "RESERVA", reservaId: "res_1" },
+        { tipo: "CLIENTE" }
+      ])
+    };
+    const handler = createGestionClientesHandler({ service: {}, repository, auditLog: vi.fn() });
+    const event = lambdaEvent({
+      method: "GET",
+      rawPath: "/secretaria/clientes/cliente-1/historial",
+      pathParameters: { id: "cliente-1" },
+      role: "SECRETARIA"
+    });
+
+    // Act
+    const response = await handler(event);
+
+    // Assert
+    expect(repository.queryByPk).toHaveBeenCalledWith("CLIENTE#cliente-1");
+    expect(parseBody(response)).toEqual({ reservas: [{ tipo: "RESERVA", reservaId: "res_1" }] });
   });
 
   it("secretaria lista clientes desde repositorio", async () => {
