@@ -94,16 +94,16 @@ describe("availability mapping", () => {
 
     // Assert
     expect(services).toEqual([
-      { id: "corte-clasico", nombre: "Corte clasico", precio: 30 },
-      { id: "barba", nombre: "Perfilado de barba", precio: 20 },
-      { id: "corte-barba", nombre: "Corte y barba", precio: 45 }
+      { id: "corte-clasico", nombre: "Corte clasico", precio: 30, duracionMinutos: 30 },
+      { id: "barba", nombre: "Perfilado de barba", precio: 20, duracionMinutos: 20 },
+      { id: "corte-barba", nombre: "Corte y barba", precio: 45, duracionMinutos: 45 }
     ]);
   });
 
   it("filtra servicios inactivos y mapea barberos", () => {
     // Arrange
     const servicios = [
-      { servicioId: "corte", nombre: "Corte", precio: 30, estado: "ACTIVO" },
+      { servicioId: "corte", nombre: "Corte", precio: 30, estado: "ACTIVO", duracionMinutos: 25 },
       { servicioId: "tinte", nombre: "Tinte", precio: 50, estado: "INACTIVO" }
     ];
     const barberos = [{ barberoId: "barbero_1", nombre: "Carlos" }];
@@ -113,7 +113,7 @@ describe("availability mapping", () => {
     const mappedBarbers = mapAvailableBarbers(barberos);
 
     // Assert
-    expect(mappedServices).toEqual([{ id: "corte", nombre: "Corte", precio: 30 }]);
+    expect(mappedServices).toEqual([{ id: "corte", nombre: "Corte", precio: 30, duracionMinutos: 25 }]);
     expect(mappedBarbers).toEqual([{ id: "barbero_1", nombre: "Carlos" }]);
   });
 });

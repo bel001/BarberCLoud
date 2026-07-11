@@ -34,8 +34,32 @@ describe("posService", () => {
     expect(repository.scanByTipo).toHaveBeenCalledWith("VENTA");
     expect(result).toEqual({
       ventas: [{ total: 15 }, { total: "25" }],
-      total: 40
+      total: 40,
+      sesionCaja: null
     });
+  });
+
+  it("lista ventas incluyendo la sesion de caja abierta del dia", async () => {
+    // Arrange
+    const repository = createRepositoryMock({
+      scanByTipo: vi.fn().mockResolvedValue([]),
+      queryByPk: vi.fn().mockResolvedValue([
+        { tipo: "CAJA_SESION", estado: "ABIERTA", sesionId: "sesion-1", montoInicial: 50 }
+      ])
+    });
+    const service = createPosService({
+      repository,
+      auditLog: vi.fn(),
+      idGenerator: fixedId(),
+      clock: fixedClock("2026-07-04T13:00:00.000Z")
+    });
+
+    // Act
+    const result = await service.listSales();
+
+    // Assert
+    expect(repository.queryByPk).toHaveBeenCalledWith("CAJA#2026-07-04");
+    expect(result.sesionCaja).toEqual({ tipo: "CAJA_SESION", estado: "ABIERTA", sesionId: "sesion-1", montoInicial: 50 });
   });
 
   it("registra venta con responsable, auditoria y fecha estable", async () => {
@@ -65,7 +89,9 @@ describe("posService", () => {
     // Assert
     expect(result).toEqual({
       message: "Venta registrada",
-      ventaId: "venta_venta-id"
+      ventaId: "venta_venta-id",
+      impuesto: 5.4,
+      totalConImpuesto: 35.4
     });
     expect(repository.putItem).toHaveBeenCalledWith(expect.objectContaining({
       pk: "CAJA#2026-07-04",
@@ -73,6 +99,8 @@ describe("posService", () => {
       ventaId: "venta_venta-id",
       concepto: "Corte clasico",
       total: 30,
+      impuesto: 5.4,
+      totalConImpuesto: 35.4,
       metodoPago: "TARJETA",
       responsable: "secretaria@demo.local"
     }));
@@ -140,7 +168,122 @@ describe("posService", () => {
     const result = await service.registerSale(event);
 
     // Assert
-    expect(result).toEqual({ message: "Venta registrada", ventaId: "venta_venta-real" });
+    expect(result).toEqual({ message: "Venta registrada", ventaId: "venta_venta-real", impuesto: 5.4, totalConImpuesto: 35.4 });
     expect(repository.putItem.mock.calls[0][0].creadoEn).toEqual(expect.any(String));
+  });
+
+  describe("apertura y cierre de caja", () => {
+    it("abre una caja con monto inicial", async () => {
+      // Arrange
+      const repository = createRepositoryMock({ queryByPk: vi.fn().mockResolvedValue([]) });
+      const auditLog = vi.fn().mockResolvedValue(undefined);
+      const service = createPosService({
+        repository,
+        auditLog,
+        idGenerator: fixedId("sesion-1"),
+        clock: fixedClock("2026-07-04T08:00:00.000Z")
+      });
+      const event = lambdaEvent({ method: "POST", role: "SECRETARIA", body: { montoInicial: 100 } });
+
+      // Act
+      const result = await service.abrirCaja(event);
+
+      // Assert
+      expect(result).toEqual({ message: "Caja abierta correctamente", sesionId: "sesion_sesion-1", montoInicial: 100 });
+      expect(repository.putItem).toHaveBeenCalledWith(expect.objectContaining({
+        pk: "CAJA#2026-07-04",
+        tipo: "CAJA_SESION",
+        estado: "ABIERTA",
+        montoInicial: 100
+      }));
+    });
+
+    it("rechaza abrir una caja si ya hay una abierta", async () => {
+      // Arrange
+      const repository = createRepositoryMock({
+        queryByPk: vi.fn().mockResolvedValue([{ tipo: "CAJA_SESION", estado: "ABIERTA" }])
+      });
+      const service = createPosService({
+        repository,
+        auditLog: vi.fn(),
+        idGenerator: fixedId(),
+        clock: fixedClock()
+      });
+      const event = lambdaEvent({ method: "POST", role: "SECRETARIA", body: {} });
+
+      // Act
+      const action = () => service.abrirCaja(event);
+
+      // Assert
+      await expect(action).rejects.toThrow("Ya existe una caja abierta para hoy");
+    });
+
+    it("cierra la caja calculando la diferencia contra lo esperado", async () => {
+      // Arrange
+      const repository = createRepositoryMock({
+        queryByPk: vi.fn().mockResolvedValue([
+          { tipo: "CAJA_SESION", estado: "ABIERTA", sesionId: "sesion-1", montoInicial: 100 },
+          { tipo: "VENTA", metodoPago: "EFECTIVO", total: 30 },
+          { tipo: "VENTA", metodoPago: "TARJETA", total: 50 }
+        ])
+      });
+      const auditLog = vi.fn().mockResolvedValue(undefined);
+      const service = createPosService({
+        repository,
+        auditLog,
+        idGenerator: fixedId(),
+        clock: fixedClock("2026-07-04T20:00:00.000Z")
+      });
+      const event = lambdaEvent({ method: "POST", role: "SECRETARIA", body: { montoContado: 125 } });
+
+      // Act
+      const result = await service.cerrarCaja(event);
+
+      // Assert: esperado = 100 inicial + 30 efectivo = 130; contado 125 => diferencia -5
+      expect(result).toEqual({ message: "Caja cerrada correctamente", montoEsperado: 130, montoContado: 125, diferencia: -5 });
+      expect(repository.putItem).toHaveBeenCalledWith(expect.objectContaining({
+        sesionId: "sesion-1",
+        estado: "CERRADA",
+        montoContado: 125,
+        montoEsperado: 130,
+        diferencia: -5
+      }));
+      expect(auditLog).toHaveBeenCalledWith(event, "CAJA_CERRAR", "OK", { sesionId: "sesion-1", diferencia: -5 });
+    });
+
+    it("rechaza cerrar caja si no hay ninguna abierta", async () => {
+      // Arrange
+      const repository = createRepositoryMock({ queryByPk: vi.fn().mockResolvedValue([]) });
+      const service = createPosService({
+        repository,
+        auditLog: vi.fn(),
+        idGenerator: fixedId(),
+        clock: fixedClock()
+      });
+      const event = lambdaEvent({ method: "POST", role: "SECRETARIA", body: { montoContado: 100 } });
+
+      // Act
+      const action = () => service.cerrarCaja(event);
+
+      // Assert
+      await expect(action).rejects.toThrow("No hay una caja abierta para cerrar");
+    });
+
+    it("rechaza cerrar caja sin montoContado", async () => {
+      // Arrange
+      const service = createPosService({
+        repository: createRepositoryMock(),
+        auditLog: vi.fn(),
+        idGenerator: fixedId(),
+        clock: fixedClock()
+      });
+      const event = lambdaEvent({ method: "POST", role: "SECRETARIA", body: {} });
+
+      // Act
+      const action = () => service.cerrarCaja(event);
+
+      // Assert
+      await expect(action).rejects.toThrow("montoContado es obligatorio");
+    });
   });
 });

@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Barbero | Dashboard</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/barbero-panel.css">
+
+<script>
+  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
+</script>
+</head>
+<body>
+  <div class="barber-shell">
+    <aside class="barber-sidebar">
+      <div class="barber-sidebar-brand">
+        <span class="material-symbols-outlined">content_cut</span>
+        <span>BarberCloud</span>
+      </div>
+
+      <div class="barber-identity">
+        <div class="barber-identity-avatar" id="barberoAvatar">B</div>
+        <div>
+          <p class="barber-identity-name" id="barberoNombre">Barbero</p>
+          <p class="barber-identity-role" id="barberoTurnoLabel">Estación activa</p>
+        </div>
+      </div>
+
+      <nav class="barber-nav">
+        <a href="barbero-dashboard.html" class="barber-nav-link active">
+          <span class="material-symbols-outlined">dashboard</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="barbero.html" class="barber-nav-link">
+          <span class="material-symbols-outlined">calendar_today</span>
+          <span>Agenda</span>
+        </a>
+        <a href="barbero-config.html" class="barber-nav-link">
+          <span class="material-symbols-outlined">settings</span>
+          <span>Configuración</span>
+        </a>
+      </nav>
+
+      <div class="barber-sidebar-footer">
+        <button class="theme-toggle" title="Cambiar tema">
+          <svg class="icon-sun hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <button type="button" class="nav-link nav-button" data-logout>
+          <span class="material-symbols-outlined">logout</span>
+          Salir
+        </button>
+      </div>
+    </aside>
+
+    <main class="barber-main">
+      <div class="barber-topbar">
+        <h2>Resumen diario</h2>
+        <p>Tu actividad y desempeño de hoy.</p>
+      </div>
+
+      <div class="barber-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 24px;">
+        <div class="barber-panel">
+          <div class="barber-panel-header">
+            <span class="material-symbols-outlined">payments</span>
+            <h3>Ganancias</h3>
+          </div>
+          <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="statGanancias">S/ 0</p>
+          <p class="text-muted" style="font-size:0.8rem;">De citas finalizadas</p>
+        </div>
+
+        <div class="barber-panel">
+          <div class="barber-panel-header">
+            <span class="material-symbols-outlined">content_cut</span>
+            <h3>Servicio popular</h3>
+          </div>
+          <p style="font-size:1.2rem; font-weight:700;" id="statServicioPopular">Sin datos</p>
+        </div>
+
+        <div class="barber-panel">
+          <div class="barber-panel-header">
+            <span class="material-symbols-outlined">toggle_on</span>
+            <h3>Estado del turno</h3>
+          </div>
+          <button class="btn btn-primary" id="btnToggleTurno" type="button" style="width:100%;">Cargando...</button>
+        </div>
+      </div>
+
+      <div class="barber-panel">
+        <div class="barber-panel-header">
+          <span class="material-symbols-outlined">upcoming</span>
+          <h3>Próximas citas</h3>
+        </div>
+        <div id="proximasCitas" class="flex flex-col gap-3"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/utils.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/barbero-dashboard.js"></script>
+</body>
+</html>

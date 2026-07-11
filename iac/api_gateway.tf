@@ -164,6 +164,38 @@ locals {
       authorization_type = "JWT"
       authorizer_id      = aws_apigatewayv2_authorizer.reserva_jwt.id
     }
+    cliente_recompensas_get = {
+      api_id             = aws_apigatewayv2_api.reserva.id
+      execution_arn      = aws_apigatewayv2_api.reserva.execution_arn
+      route_key          = "GET /cliente/recompensas"
+      lambda_key         = "gestion_recompensas"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.reserva_jwt.id
+    }
+    cliente_recompensas_post = {
+      api_id             = aws_apigatewayv2_api.reserva.id
+      execution_arn      = aws_apigatewayv2_api.reserva.execution_arn
+      route_key          = "POST /cliente/recompensas"
+      lambda_key         = "gestion_recompensas"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.reserva_jwt.id
+    }
+    cliente_cuenta_get = {
+      api_id             = aws_apigatewayv2_api.reserva.id
+      execution_arn      = aws_apigatewayv2_api.reserva.execution_arn
+      route_key          = "GET /cliente/cuenta"
+      lambda_key         = "gestion_cuenta"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.reserva_jwt.id
+    }
+    cliente_cuenta_put = {
+      api_id             = aws_apigatewayv2_api.reserva.id
+      execution_arn      = aws_apigatewayv2_api.reserva.execution_arn
+      route_key          = "PUT /cliente/cuenta"
+      lambda_key         = "gestion_cuenta"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.reserva_jwt.id
+    }
     cancelar_post = {
       api_id             = aws_apigatewayv2_api.cancelar.id
       execution_arn      = aws_apigatewayv2_api.cancelar.execution_arn
@@ -172,11 +204,35 @@ locals {
       authorization_type = "JWT"
       authorizer_id      = aws_apigatewayv2_authorizer.cancelar_jwt.id
     }
+    reprogramar_post = {
+      api_id             = aws_apigatewayv2_api.cancelar.id
+      execution_arn      = aws_apigatewayv2_api.cancelar.execution_arn
+      route_key          = "POST /reservas/{id}/reprogramar"
+      lambda_key         = "reprogramar_reserva"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.cancelar_jwt.id
+    }
     barbero_agenda_get = {
       api_id             = aws_apigatewayv2_api.barbero.id
       execution_arn      = aws_apigatewayv2_api.barbero.execution_arn
       route_key          = "GET /barbero/agenda"
       lambda_key         = "gestion_agenda_barbero"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.barbero_jwt.id
+    }
+    barbero_turno_put = {
+      api_id             = aws_apigatewayv2_api.barbero.id
+      execution_arn      = aws_apigatewayv2_api.barbero.execution_arn
+      route_key          = "PUT /barbero/turno"
+      lambda_key         = "gestion_agenda_barbero"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.barbero_jwt.id
+    }
+    barbero_citas_estado_post = {
+      api_id             = aws_apigatewayv2_api.barbero.id
+      execution_arn      = aws_apigatewayv2_api.barbero.execution_arn
+      route_key          = "POST /barbero/citas/{id}/estado"
+      lambda_key         = "actualizar_estado_cita"
       authorization_type = "JWT"
       authorizer_id      = aws_apigatewayv2_authorizer.barbero_jwt.id
     }
@@ -209,6 +265,46 @@ locals {
       execution_arn      = aws_apigatewayv2_api.secretaria.execution_arn
       route_key          = "GET /secretaria/clientes"
       lambda_key         = "gestion_clientes"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.secretaria_jwt.id
+    }
+    secretaria_clientes_post = {
+      api_id             = aws_apigatewayv2_api.secretaria.id
+      execution_arn      = aws_apigatewayv2_api.secretaria.execution_arn
+      route_key          = "POST /secretaria/clientes"
+      lambda_key         = "gestion_clientes"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.secretaria_jwt.id
+    }
+    secretaria_clientes_historial_get = {
+      api_id             = aws_apigatewayv2_api.secretaria.id
+      execution_arn      = aws_apigatewayv2_api.secretaria.execution_arn
+      route_key          = "GET /secretaria/clientes/{id}/historial"
+      lambda_key         = "gestion_clientes"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.secretaria_jwt.id
+    }
+    secretaria_agenda_get = {
+      api_id             = aws_apigatewayv2_api.secretaria.id
+      execution_arn      = aws_apigatewayv2_api.secretaria.execution_arn
+      route_key          = "GET /secretaria/agenda"
+      lambda_key         = "gestion_agenda_barbero"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.secretaria_jwt.id
+    }
+    secretaria_caja_abrir_post = {
+      api_id             = aws_apigatewayv2_api.secretaria.id
+      execution_arn      = aws_apigatewayv2_api.secretaria.execution_arn
+      route_key          = "POST /secretaria/caja/abrir"
+      lambda_key         = "gestion_caja"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.secretaria_jwt.id
+    }
+    secretaria_caja_cerrar_post = {
+      api_id             = aws_apigatewayv2_api.secretaria.id
+      execution_arn      = aws_apigatewayv2_api.secretaria.execution_arn
+      route_key          = "POST /secretaria/caja/cerrar"
+      lambda_key         = "gestion_caja"
       authorization_type = "JWT"
       authorizer_id      = aws_apigatewayv2_authorizer.secretaria_jwt.id
     }
@@ -252,10 +348,26 @@ locals {
       authorization_type = "JWT"
       authorizer_id      = aws_apigatewayv2_authorizer.administrador_jwt.id
     }
+    admin_personal_get = {
+      api_id             = aws_apigatewayv2_api.administrador.id
+      execution_arn      = aws_apigatewayv2_api.administrador.execution_arn
+      route_key          = "GET /admin/personal"
+      lambda_key         = "gestion_personal"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.administrador_jwt.id
+    }
     admin_personal_post = {
       api_id             = aws_apigatewayv2_api.administrador.id
       execution_arn      = aws_apigatewayv2_api.administrador.execution_arn
       route_key          = "POST /admin/personal"
+      lambda_key         = "gestion_personal"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.administrador_jwt.id
+    }
+    admin_personal_baja_post = {
+      api_id             = aws_apigatewayv2_api.administrador.id
+      execution_arn      = aws_apigatewayv2_api.administrador.execution_arn
+      route_key          = "POST /admin/personal/{id}/baja"
       lambda_key         = "gestion_personal"
       authorization_type = "JWT"
       authorizer_id      = aws_apigatewayv2_authorizer.administrador_jwt.id
@@ -305,6 +417,46 @@ locals {
       execution_arn      = aws_apigatewayv2_api.administrador.execution_arn
       route_key          = "GET /admin/pos"
       lambda_key         = "gestion_pos"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.administrador_jwt.id
+    }
+    admin_dashboard_financiero_get = {
+      api_id             = aws_apigatewayv2_api.administrador.id
+      execution_arn      = aws_apigatewayv2_api.administrador.execution_arn
+      route_key          = "GET /admin/dashboard-financiero"
+      lambda_key         = "gestion_financiera"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.administrador_jwt.id
+    }
+    admin_citas_estado_post = {
+      api_id             = aws_apigatewayv2_api.administrador.id
+      execution_arn      = aws_apigatewayv2_api.administrador.execution_arn
+      route_key          = "POST /admin/citas/{id}/estado"
+      lambda_key         = "actualizar_estado_cita"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.administrador_jwt.id
+    }
+    admin_config_negocio_get = {
+      api_id             = aws_apigatewayv2_api.administrador.id
+      execution_arn      = aws_apigatewayv2_api.administrador.execution_arn
+      route_key          = "GET /admin/config-negocio"
+      lambda_key         = "gestion_config_negocio"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.administrador_jwt.id
+    }
+    admin_config_negocio_put = {
+      api_id             = aws_apigatewayv2_api.administrador.id
+      execution_arn      = aws_apigatewayv2_api.administrador.execution_arn
+      route_key          = "PUT /admin/config-negocio"
+      lambda_key         = "gestion_config_negocio"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.administrador_jwt.id
+    }
+    admin_actividad_get = {
+      api_id             = aws_apigatewayv2_api.administrador.id
+      execution_arn      = aws_apigatewayv2_api.administrador.execution_arn
+      route_key          = "GET /admin/actividad"
+      lambda_key         = "gestion_actividad"
       authorization_type = "JWT"
       authorizer_id      = aws_apigatewayv2_authorizer.administrador_jwt.id
     }

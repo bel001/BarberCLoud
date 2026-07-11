@@ -44,5 +44,28 @@ const API = {
     }
 
     return response.json();
+  },
+
+  async put(path, payload, token = null) {
+    const headers = {
+      "Content-Type": "application/json"
+    };
+
+    if (token) {
+      headers.Authorization = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${this.baseFor(path)}${path}`, {
+      method: "PUT",
+      headers,
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const error = await response.text().catch(() => "Error de conexion");
+      throw new Error(`PUT ${path} failed: ${response.status} ${error}`);
+    }
+
+    return response.json();
   }
 };

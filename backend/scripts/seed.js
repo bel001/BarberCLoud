@@ -1,4 +1,4 @@
-import { BatchWriteCommand, DynamoDBDocumentClient } from "@aws-sdk/lib-dynamodb";
+import { BatchWriteCommand, DynamoDBDocumentClient, GetCommand } from "@aws-sdk/lib-dynamodb";
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 
 const tableName = process.env.TABLE_NAME || "barbercloud-local";
@@ -91,12 +91,25 @@ const items = [
   }
 ];
 
-await client.send(new BatchWriteCommand({
-  RequestItems: {
-    [tableName]: items.map(Item => ({
-      PutRequest: { Item }
-    }))
-  }
+// El perfil del cliente demo acumula puntos de lealtad en tiempo real: si ya
+// existe, no lo sobrescribimos para no resetear sus puntos en cada reinicio.
+const clientePerfilExistente = await client.send(new GetCommand({
+  TableName: tableName,
+  Key: { pk: "CLIENTE#cliente-demo", sk: "PROFILE" }
 }));
+
+const itemsAInsertar = clientePerfilExistente.Item
+  ? items.filter(item => item.pk !== "CLIENTE#cliente-demo")
+  : items;
+
+if (itemsAInsertar.length > 0) {
+  await client.send(new BatchWriteCommand({
+    RequestItems: {
+      [tableName]: itemsAInsertar.map(Item => ({
+        PutRequest: { Item }
+      }))
+    }
+  }));
+}
 
 console.log(`Seed data loaded into ${tableName}`);

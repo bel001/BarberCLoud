@@ -10,6 +10,10 @@ export function createGestionFinancieraHandler(service) {
     try {
       requireRole(event, ["ADMIN"]);
 
+      if (event.rawPath?.includes("/dashboard-financiero")) {
+        return ok(await service.getDashboard());
+      }
+
       return ok(await service.getReport());
     } catch (error) {
       return serverError(error);

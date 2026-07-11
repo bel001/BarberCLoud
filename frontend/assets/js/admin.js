@@ -1,175 +1,101 @@
 const sessionAdmin = AUTH.requireSession();
 
-async function cargarReporte() {
-  try {
-    const data = await API.get("/admin/reporte-financiero", sessionAdmin.token);
+function mostrarIdentidad() {
+  const nombre = sessionAdmin.name || sessionAdmin.email || "Administrador";
+  document.getElementById("adminNombre").textContent = nombre;
+  document.getElementById("adminAvatar").textContent = nombre.charAt(0).toUpperCase();
+}
 
-    document.getElementById("reporte").innerHTML = `
-      <div class="stat-card">
-        <span class="stat-label">Total reservas</span>
-        <span class="stat-value">${data.totalReservas || 0}</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Online</span>
-        <span class="stat-value">${data.online || 0}</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Presenciales</span>
-        <span class="stat-value">${data.presenciales || 0}</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Ingresos</span>
-        <span class="stat-value">S/ ${data.ingresosEstimados || 0}</span>
-      </div>
-    `;
+async function cargarStats() {
+  try {
+    const [reporte, config] = await Promise.all([
+      API.get("/admin/reporte-financiero", sessionAdmin.token),
+      API.get("/admin/config-negocio", sessionAdmin.token)
+    ]);
+
+    document.getElementById("statTotalReservas").textContent = reporte.totalReservas || 0;
+    document.getElementById("statOnlinePresencial").textContent = `${reporte.online || 0} / ${reporte.presenciales || 0}`;
+    document.getElementById("statIngresos").textContent = `S/ ${reporte.ingresosEstimados || 0}`;
+
+    const cfg = config.config || config;
+    document.getElementById("statComision").textContent = `${cfg.comisionPorcentaje}%`;
+    document.getElementById("resumenPolitica").textContent =
+      `Comisión ${cfg.comisionPorcentaje}% · Penalización ${cfg.penalizacionPorcentaje}% tras ${cfg.horasParaPenalizacion}h · Anticipación ${cfg.anticipacionMinimaHoras}h a ${cfg.anticipacionMaximaDias}d`;
   } catch (error) {
-    Toast.show("Error al cargar reporte: " + error.message, "error");
+    Toast.show("Error al cargar estadísticas: " + error.message, "error");
   }
 }
 
-async function cargarServicios() {
+async function cargarGrafico() {
   try {
-    const data = await API.get("/admin/servicios", sessionAdmin.token);
-    const servicios = data.servicios || [];
-    const container = document.getElementById("servicios");
+    const data = await API.get("/admin/dashboard-financiero", sessionAdmin.token);
+    const meses = data.ingresosPorMes || [];
+    const container = document.getElementById("graficoIngresos");
 
-    if (servicios.length === 0) {
-      container.innerHTML = `<p class="text-muted text-sm">No hay servicios configurados</p>`;
+    if (meses.length === 0) {
+      container.innerHTML = `<p class="text-muted text-sm">Aún no hay ingresos registrados.</p>`;
       return;
     }
 
-    container.innerHTML = servicios.map(item => `
-      <div class="list-item">
-        <div class="list-item-info">
-          <div class="list-item-title">${escapeHtml(item.nombre)}</div>
-          <div class="list-item-subtitle">S/ ${escapeHtml(item.precio)}</div>
-        </div>
+    const maximo = Math.max(...meses.map(item => item.ingresos), 1);
+
+    container.innerHTML = meses.map(item => `
+      <div class="chart-bar-wrap">
+        <span class="chart-bar-value">S/ ${item.ingresos}</span>
+        <div class="chart-bar" data-height="${Math.round((item.ingresos / maximo) * 100)}"></div>
+        <span class="chart-bar-label">${escapeHtml(item.mes)}</span>
       </div>
     `).join("");
+
+    container.querySelectorAll(".chart-bar").forEach(bar => {
+      bar.style.setProperty("--bar-height", `${bar.dataset.height}%`);
+    });
   } catch (error) {
-    Toast.show("Error al cargar servicios: " + error.message, "error");
+    Toast.show("Error al cargar el gráfico: " + error.message, "error");
   }
 }
 
-async function guardarServicio(event) {
-  event.preventDefault();
-  const btn = event.submitter;
-  Loading.button(btn, true);
-
+async function cargarPersonal() {
   try {
-    await API.post("/admin/servicios", {
-      nombre: document.getElementById("nombreServicio").value,
-      precio: Number(document.getElementById("precioServicio").value)
-    }, sessionAdmin.token);
+    const data = await API.get("/admin/personal", sessionAdmin.token);
+    const personal = data.personal || [];
+    const activos = personal.filter(p => p.estado !== "INACTIVO").length;
+    const bajas = personal.length - activos;
 
-    Toast.show("Servicio guardado correctamente", "success");
-    document.getElementById("formServicio").reset();
-    await cargarServicios();
+    document.getElementById("resumenPersonal").textContent =
+      personal.length
+        ? `${personal.length} miembros registrados · ${activos} activos · ${bajas} de baja`
+        : "No hay personal registrado todavía.";
   } catch (error) {
-    Toast.show(error.message, "error");
-  } finally {
-    Loading.button(btn, false);
+    Toast.show("Error al cargar personal: " + error.message, "error");
   }
 }
 
-async function crearPersonal(event) {
-  event.preventDefault();
-  const btn = event.submitter;
-  Loading.button(btn, true);
-
+async function cargarActividad() {
   try {
-    const response = await API.post("/admin/personal", {
-      nombre: document.getElementById("nombrePersonal").value,
-      email: document.getElementById("emailPersonal").value,
-      rol: document.getElementById("rolPersonal").value,
-      password: document.getElementById("passwordPersonal").value
-    }, sessionAdmin.token);
+    const data = await API.get("/admin/actividad", sessionAdmin.token);
+    const actividad = data.actividad || [];
+    const container = document.getElementById("flujoActividad");
 
-    if (response.userId) {
-      Toast.show("Usuario creado: " + response.email, "success");
-      document.getElementById("formPersonal").reset();
-      document.getElementById("personal").innerHTML = "";
-    } else {
-      Toast.show(response.error || "Error al crear usuario", "error");
-    }
-  } catch (error) {
-    Toast.show(error.message, "error");
-  } finally {
-    Loading.button(btn, false);
-  }
-}
-
-function getClienteReserva(cita) {
-  return cita.clienteNombre || cita.clienteCorreo || cita.clienteId || "Cliente sin nombre";
-}
-
-function renderAgendaGlobal(citas) {
-  const container = document.getElementById("agendaGlobal");
-
-  if (!container) return;
-
-  if (citas.length === 0) {
-    container.innerHTML = `<p class="text-muted text-sm">No hay citas registradas.</p>`;
-    return;
-  }
-
-  container.innerHTML = citas.slice(0, 6).map(cita => `
-    <div class="list-item">
-      <div class="list-item-info">
-        <div class="list-item-title">${escapeHtml(getClienteReserva(cita))}</div>
-        <div class="list-item-subtitle">
-          ${escapeHtml(cita.servicioNombre || cita.servicioId || "Servicio")} · ${escapeHtml(cita.fecha)} · ${escapeHtml(cita.hora)}
+    container.innerHTML = actividad.length
+      ? actividad.map(item => `
+        <div class="list-item">
+          <div class="list-item-info">
+            <div class="list-item-title">${escapeHtml(item.action)} <span class="badge ${item.status === "OK" ? "badge-success" : "badge-danger"}">${escapeHtml(item.status)}</span></div>
+            <div class="list-item-subtitle">${escapeHtml(item.responsable)} (${escapeHtml(item.rol)}) · ${escapeHtml(new Date(item.creadoEn).toLocaleString())}</div>
+          </div>
         </div>
-      </div>
-      <span class="badge badge-${cita.estado === "CANCELADA" ? "danger" : "success"}">${escapeHtml(cita.estado || "CONFIRMADA")}</span>
-    </div>
-  `).join("");
-}
-
-async function cargarGlobal() {
-  try {
-    const [agenda, inventario, insumos, pos] = await Promise.all([
-      API.get("/admin/agenda", sessionAdmin.token),
-      API.get("/admin/inventario", sessionAdmin.token),
-      API.get("/admin/insumos", sessionAdmin.token),
-      API.get("/admin/pos", sessionAdmin.token)
-    ]);
-
-    const totalCitas = (agenda.citas || []).length;
-    const totalProductos = (inventario.inventario || []).length;
-    const totalConsumos = (insumos.insumos || []).length;
-    const cajaTotal = pos.total || 0;
-    const citas = agenda.citas || [];
-
-    document.getElementById("global").innerHTML = `
-      <div class="stat-card">
-        <span class="stat-label">Citas globales</span>
-        <span class="stat-value">${totalCitas}</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Productos</span>
-        <span class="stat-value">${totalProductos}</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Consumos</span>
-        <span class="stat-value">${totalConsumos}</span>
-      </div>
-      <div class="stat-card">
-        <span class="stat-label">Caja total</span>
-        <span class="stat-value">S/ ${cajaTotal}</span>
-      </div>
-    `;
-
-    renderAgendaGlobal(citas);
+      `).join("")
+      : `<p class="text-muted text-sm">Sin actividad registrada.</p>`;
   } catch (error) {
-    Toast.show("Error al cargar datos globales: " + error.message, "error");
+    Toast.show("Error al cargar actividad: " + error.message, "error");
   }
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  cargarReporte();
-  cargarServicios();
-  cargarGlobal();
-  document.getElementById("formServicio").addEventListener("submit", guardarServicio);
-  document.getElementById("formPersonal").addEventListener("submit", crearPersonal);
+  mostrarIdentidad();
+  cargarStats();
+  cargarGrafico();
+  cargarPersonal();
+  cargarActividad();
 });

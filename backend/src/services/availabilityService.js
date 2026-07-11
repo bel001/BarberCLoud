@@ -1,7 +1,7 @@
 const defaultServices = [
-  { id: "corte-clasico", nombre: "Corte clasico", precio: 30 },
-  { id: "barba", nombre: "Perfilado de barba", precio: 20 },
-  { id: "corte-barba", nombre: "Corte y barba", precio: 45 }
+  { id: "corte-clasico", nombre: "Corte clasico", precio: 30, duracionMinutos: 30 },
+  { id: "barba", nombre: "Perfilado de barba", precio: 20, duracionMinutos: 20 },
+  { id: "corte-barba", nombre: "Corte y barba", precio: 45, duracionMinutos: 45 }
 ];
 
 const defaultBarbers = [
@@ -22,7 +22,8 @@ export function mapAvailableServices(items) {
     ? items.filter(item => item.estado !== "INACTIVO").map(item => ({
       id: item.servicioId,
       nombre: item.nombre,
-      precio: item.precio
+      precio: item.precio,
+      duracionMinutos: item.duracionMinutos || 45
     }))
     : defaultServices;
 }

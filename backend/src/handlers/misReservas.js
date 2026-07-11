@@ -7,11 +7,13 @@ export async function handler(event) {
     requireRole(event, ["CLIENTE"]);
 
     const user = getUser(event);
-    const reservas = await queryByPk(`CLIENTE#${user.sub}`);
+    const items = await queryByPk(`CLIENTE#${user.sub}`);
 
-    const soloReservas = reservas.filter(item => item.tipo === "RESERVA");
+    const reservas = items.filter(item => item.tipo === "RESERVA");
+    const canjes = items.filter(item => item.tipo === "CANJE");
+    const perfil = items.find(item => item.tipo === "CLIENTE");
 
-    return ok(soloReservas);
+    return ok({ reservas, canjes, puntos: perfil?.puntos || 0 });
   } catch (error) {
     return serverError(error);
   }

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Servicios y precios | BarberCloud</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/landing.css">
+<script>
+  (function() {
+    const t = localStorage.getItem("barbercloud_theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    document.documentElement.setAttribute("data-theme", t);
+  })();
+</script>
+</head>
+<body>
+<div class="landing-shell">
+  <header class="header">
+    <div class="header-inner">
+      <a href="index.html" class="brand brand-uppercase">
+        <span class="brand-mark">BC</span>
+        <span>BarberCloud</span>
+      </a>
+      <nav class="header-nav">
+        <a href="index.html" class="nav-link">Inicio</a>
+        <a href="reservar.html" class="nav-link">Reservar</a>
+        <a href="login.html" class="nav-link nav-cta">Ingresar</a>
+        <button class="theme-toggle" title="Cambiar tema">
+          <svg class="icon-sun hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <section class="section">
+    <div class="container">
+      <div class="section-header">
+        <p class="eyebrow">Nuestros Servicios</p>
+        <h2>Servicios y precios</h2>
+        <p>Elige el servicio que más se ajuste a tu estilo. Precios claros, sin sorpresas.</p>
+      </div>
+
+      <div id="serviciosPrecioGrid" class="price-grid">
+        <p class="text-muted">Cargando servicios...</p>
+      </div>
+    </div>
+  </section>
+</div>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/utils.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/servicios.js"></script>
+</body>
+</html>

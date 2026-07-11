@@ -5,19 +5,60 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Administrador | BarberCloud</title>
   <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/barbero-panel.css">
 
 <script>
   (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
 </script>
 </head>
 <body>
-  <header class="header">
-    <div class="header-inner">
-      <a href="index.html" class="brand">
-        <span class="brand-mark">BC</span>
+  <div class="barber-shell">
+    <aside class="barber-sidebar">
+      <div class="barber-sidebar-brand">
+        <span class="material-symbols-outlined">content_cut</span>
         <span>BarberCloud</span>
-      </a>
-      <nav class="header-nav">
+      </div>
+
+      <div class="barber-identity">
+        <div class="barber-identity-avatar" id="adminAvatar">A</div>
+        <div>
+          <p class="barber-identity-name" id="adminNombre">Administrador</p>
+          <p class="barber-identity-role">Administrador</p>
+        </div>
+      </div>
+
+      <nav class="barber-nav">
+        <a href="admin.html" class="barber-nav-link active">
+          <span class="material-symbols-outlined">dashboard</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="admin-agenda.html" class="barber-nav-link">
+          <span class="material-symbols-outlined">calendar_month</span>
+          <span>Agenda</span>
+        </a>
+        <a href="admin-personal.html" class="barber-nav-link">
+          <span class="material-symbols-outlined">group</span>
+          <span>Personal</span>
+        </a>
+        <a href="admin-financiero.html" class="barber-nav-link">
+          <span class="material-symbols-outlined">payments</span>
+          <span>Financiero</span>
+        </a>
+        <a href="admin-negocio.html" class="barber-nav-link">
+          <span class="material-symbols-outlined">storefront</span>
+          <span>Negocio</span>
+        </a>
+        <a href="admin-inventario.html" class="barber-nav-link">
+          <span class="material-symbols-outlined">inventory_2</span>
+          <span>Inventario</span>
+        </a>
+        <a href="admin-config.html" class="barber-nav-link">
+          <span class="material-symbols-outlined">settings</span>
+          <span>Config</span>
+        </a>
+      </nav>
+
+      <div class="barber-sidebar-footer">
         <button class="theme-toggle" title="Cambiar tema">
           <svg class="icon-sun hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="5"/>
@@ -28,132 +69,93 @@
           </svg>
         </button>
         <button type="button" class="nav-link nav-button" data-logout>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:4px;">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-            <polyline points="16 17 21 12 16 7"/>
-            <line x1="21" y1="12" x2="9" y2="12"/>
-          </svg>
+          <span class="material-symbols-outlined">logout</span>
           Salir
         </button>
-      </nav>
-    </div>
-  </header>
+      </div>
+    </aside>
 
-  <main class="dashboard">
-    <div class="container">
-      <p class="eyebrow">Panel de Administración</p>
-      <h1 style="margin-bottom: 32px;">Control total</h1>
+    <main class="barber-main">
+      <div class="barber-topbar">
+        <h2>Control total</h2>
+        <p>Resumen general del negocio y accesos rápidos.</p>
+      </div>
 
-      <div class="dashboard-grid">
-        <div class="dashboard-card">
-          <div class="dashboard-card-header">
-            <h3>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M12 20V10"/>
-                <path d="M18 20V4"/>
-                <path d="M6 20v-4"/>
-              </svg>
-              Reporte general
-            </h3>
+      <div class="barber-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
+        <div class="barber-panel">
+          <div class="barber-panel-header">
+            <span class="material-symbols-outlined">event_available</span>
+            <h3>Total reservas</h3>
           </div>
-          <div id="reporte" class="stats-grid"></div>
+          <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="statTotalReservas">0</p>
         </div>
-
-        <div class="dashboard-card">
-          <div class="dashboard-card-header">
-            <h3>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                <line x1="16" y1="2" x2="16" y2="6"/>
-                <line x1="8" y1="2" x2="8" y2="6"/>
-                <line x1="3" y1="10" x2="21" y2="10"/>
-              </svg>
-              Servicios y reglas
-            </h3>
+        <div class="barber-panel">
+          <div class="barber-panel-header">
+            <span class="material-symbols-outlined">swap_horiz</span>
+            <h3>Online / Presencial</h3>
           </div>
-          <form id="formServicio" class="flex flex-col gap-4 mb-4">
-            <div class="form-group">
-              <label class="form-label" for="nombreServicio">Nombre del servicio</label>
-              <input type="text" id="nombreServicio" class="form-input" placeholder="Fade premium" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="precioServicio">Precio (S/)</label>
-              <input type="number" id="precioServicio" class="form-input" min="1" placeholder="50" required>
-            </div>
-            <button class="btn btn-primary" type="submit">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                <polyline points="17 21 17 13 7 13 7 21"/>
-                <polyline points="7 3 7 8 15 8"/>
-              </svg>
-              Guardar servicio
-            </button>
-          </form>
-          <div id="servicios" class="flex flex-col gap-2"></div>
+          <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="statOnlinePresencial">0 / 0</p>
         </div>
-
-        <div class="dashboard-card">
-          <div class="dashboard-card-header">
-            <h3>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="8.5" cy="7" r="4"/>
-                <line x1="20" y1="8" x2="20" y2="14"/>
-                <line x1="23" y1="11" x2="17" y2="11"/>
-              </svg>
-              Crear usuario interno
-            </h3>
+        <div class="barber-panel">
+          <div class="barber-panel-header">
+            <span class="material-symbols-outlined">payments</span>
+            <h3>Ingresos estimados</h3>
           </div>
-          <form id="formPersonal" class="flex flex-col gap-4">
-            <div class="form-group">
-              <label class="form-label" for="nombrePersonal">Nombre</label>
-              <input type="text" id="nombrePersonal" class="form-input" placeholder="Nuevo Barbero" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="emailPersonal">Correo</label>
-              <input type="email" id="emailPersonal" class="form-input" placeholder="nuevo@barbercloud.com" required>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="rolPersonal">Rol</label>
-              <select id="rolPersonal" class="form-input">
-                <option value="BARBERO">BARBERO</option>
-                <option value="SECRETARIA">SECRETARIA</option>
-                <option value="ADMIN">ADMIN</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="passwordPersonal">Contraseña temporal</label>
-              <input type="password" id="passwordPersonal" class="form-input" required>
-            </div>
-            <button class="btn btn-primary" type="submit">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
-                <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                <circle cx="8.5" cy="7" r="4"/>
-                <line x1="20" y1="8" x2="20" y2="14"/>
-                <line x1="23" y1="11" x2="17" y2="11"/>
-              </svg>
-              Crear usuario
-            </button>
-          </form>
-          <div id="personal" class="mt-4"></div>
+          <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="statIngresos">S/ 0</p>
         </div>
-
-        <div class="dashboard-card">
-          <div class="dashboard-card-header">
-            <h3>
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <path d="M12 6v6l4 2"/>
-              </svg>
-              Operación global
-            </h3>
+        <div class="barber-panel">
+          <div class="barber-panel-header">
+            <span class="material-symbols-outlined">percent</span>
+            <h3>Comisión vigente</h3>
           </div>
-          <div id="global" class="stats-grid"></div>
-          <div id="agendaGlobal" class="flex flex-col gap-2 mt-4"></div>
+          <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="statComision">40%</p>
         </div>
       </div>
-    </div>
-  </main>
+
+      <div class="barber-grid">
+        <div class="barber-panel" style="grid-column: 1 / -1;">
+          <div class="barber-panel-header" style="justify-content:space-between;">
+            <h3 style="display:flex;align-items:center;gap:10px;">
+              <span class="material-symbols-outlined">bar_chart</span>
+              Ingresos mensuales
+            </h3>
+            <a href="admin-financiero.html" class="btn btn-secondary btn-sm">Ver dashboard financiero</a>
+          </div>
+          <div id="graficoIngresos" class="flex" style="align-items:flex-end; gap:16px; height:180px; padding-top:16px;"></div>
+        </div>
+
+        <div class="barber-panel">
+          <div class="barber-panel-header" style="justify-content:space-between;">
+            <h3 style="display:flex;align-items:center;gap:10px;">
+              <span class="material-symbols-outlined">group</span>
+              Gestión de personal
+            </h3>
+            <a href="admin-personal.html" class="btn btn-secondary btn-sm">Administrar</a>
+          </div>
+          <p class="text-muted" id="resumenPersonal">Cargando...</p>
+        </div>
+
+        <div class="barber-panel">
+          <div class="barber-panel-header" style="justify-content:space-between;">
+            <h3 style="display:flex;align-items:center;gap:10px;">
+              <span class="material-symbols-outlined">policy</span>
+              Política del local
+            </h3>
+            <a href="admin-negocio.html" class="btn btn-secondary btn-sm">Configurar</a>
+          </div>
+          <p class="text-muted" id="resumenPolitica">Cargando...</p>
+        </div>
+
+        <div class="barber-panel" style="grid-column: 1 / -1;">
+          <div class="barber-panel-header">
+            <span class="material-symbols-outlined">history</span>
+            <h3>Flujo de actividad</h3>
+          </div>
+          <div id="flujoActividad" class="flex flex-col gap-2"></div>
+        </div>
+      </div>
+    </main>
+  </div>
 
   <script src="assets/js/config.js"></script>
   <script src="assets/js/utils.js"></script>

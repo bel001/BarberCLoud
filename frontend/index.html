@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BarberCloud | Reservas inteligentes para barberías</title>
   <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/landing.css">
 <script>
   (function() {
     const t = localStorage.getItem("barbercloud_theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
@@ -13,9 +14,10 @@
 </script>
 </head>
 <body>
+<div class="landing-shell">
   <header class="header">
     <div class="header-inner">
-      <a href="index.html" class="brand">
+      <a href="index.html" class="brand brand-uppercase">
         <span class="brand-mark">BC</span>
         <span>BarberCloud</span>
       </a>
@@ -36,7 +38,7 @@
     </div>
   </header>
 
-  <section class="hero">
+  <section class="hero hero-photo">
     <div class="hero-content">
       <p class="eyebrow">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -44,12 +46,12 @@
           <path d="M2 17l10 5 10-5"/>
           <path d="M2 12l10 5 10-5"/>
         </svg>
-        Sistema premium de reservas
+        Bienvenido a BarberCloud
       </p>
-      <h1>Agenda tu <span>corte</span> sin llamadas, sin esperas</h1>
+      <h1>Tu tiempo importa, <span>tu estilo también</span></h1>
       <p class="hero-text">
-        Explora servicios, revisa disponibilidad en tiempo real y elige el horario que prefieras.
-        Todo desde tu teléfono, sin complicaciones.
+        Combinamos la barbería clásica con la comodidad de la tecnología.
+        Elige tu hora en un clic y visítanos sin filas ni esperas.
       </p>
       <div class="hero-actions">
         <a class="btn btn-primary btn-lg" href="reservar.html">
@@ -59,49 +61,64 @@
             <line x1="8" y1="2" x2="8" y2="6"/>
             <line x1="3" y1="10" x2="21" y2="10"/>
           </svg>
-          Ver horarios
+          Reservar espacio
         </a>
-        <a class="btn btn-secondary btn-lg" href="register.html">
+        <a class="btn btn-secondary btn-lg" href="servicios.html">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
             <circle cx="8.5" cy="7" r="4"/>
             <line x1="20" y1="8" x2="20" y2="14"/>
             <line x1="23" y1="11" x2="17" y2="11"/>
           </svg>
-          Crear cuenta
+          Ver servicios y precios
         </a>
+      </div>
+      <div class="hero-trust">
+        <p>Una nueva forma de cuidar tu imagen ha llegado.</p>
       </div>
     </div>
     <div class="hero-card">
       <h3>Horarios disponibles hoy</h3>
       <div class="hero-metric">
-        <span class="hero-metric-time">09:00</span>
+        <span class="hero-metric-time">9:00 AM</span>
         <strong>Corte clásico</strong>
       </div>
-      <div class="hero-metric">
-        <span class="hero-metric-time">11:00</span>
+      <div class="hero-metric hero-metric-extra hidden">
+        <span class="hero-metric-time">11:00 AM</span>
         <strong>Fade premium</strong>
       </div>
-      <div class="hero-metric">
-        <span class="hero-metric-time">15:00</span>
+      <div class="hero-metric hero-metric-extra hidden">
+        <span class="hero-metric-time">3:00 PM</span>
         <strong>Barba profileada</strong>
       </div>
-      <div class="hero-metric">
-        <span class="hero-metric-time">17:00</span>
+      <div class="hero-metric hero-metric-extra hidden">
+        <span class="hero-metric-time">5:00 PM</span>
         <strong>Corte y barba</strong>
       </div>
+      <button type="button" class="hero-card-toggle" id="heroCardToggle">
+        <span>Ver todos los horarios</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>
+      </button>
     </div>
   </section>
 
-  <section class="section">
+  <section id="servicios" class="section">
     <div class="container">
-      <div class="section-header">
-        <p class="eyebrow">Servicios</p>
-        <h2>Todo lo que necesitas</h2>
-        <p>Gestión completa para tu barbería: reservas online, agenda de barberos, punto de venta y reportes.</p>
+      <div class="section-header section-header-split">
+        <div>
+          <p class="eyebrow">Nuestros Servicios</p>
+          <h2>Gestión impecable para resultados extraordinarios.</h2>
+        </div>
+        <a href="servicios.html" class="nav-link">Ver todos los servicios</a>
       </div>
 
-      <div class="cards-grid">
+      <div class="bento-grid">
+        <div class="card card-photo card-popular">
+          <span class="card-badge">Popular</span>
+          <h3>Corte de Autor &amp; Barba</h3>
+          <p>Nuestro servicio insignia que combina técnicas clásicas y modernas.</p>
+        </div>
+
         <div class="card">
           <div class="card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -111,76 +128,107 @@
               <line x1="3" y1="10" x2="21" y2="10"/>
             </svg>
           </div>
-          <h3>Reserva online</h3>
-          <p>Tus clientes eligen horario desde cualquier dispositivo. Reciben confirmación instantánea.</p>
+          <h3>Reserva Online</h3>
+          <p>Agenda en segundos desde cualquier dispositivo.</p>
         </div>
 
         <div class="card">
           <div class="card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
-              <circle cx="12" cy="7" r="4"/>
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/>
             </svg>
           </div>
-          <h3>Cita presencial</h3>
-          <p>La secretaria agenda clientes existentes. Ideal para reservas por teléfono.</p>
+          <h3>Tratamientos</h3>
+          <p>Limpieza facial y masajes capilares premium.</p>
         </div>
 
         <div class="card">
           <div class="card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+              <path d="M21 8L12 3 3 8l9 5 9-5z"/>
+              <path d="M3 8v8l9 5 9-5V8"/>
             </svg>
           </div>
-          <h3>Agenda del barbero</h3>
-          <p>Cada profesional ve solo sus citas. Sin información innecesaria.</p>
+          <h3>Productos</h3>
+          <p>Línea exclusiva de ceras y aceites orgánicos.</p>
         </div>
 
         <div class="card">
           <div class="card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <line x1="12" y1="1" x2="12" y2="23"/>
-              <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+              <rect x="2" y="5" width="20" height="14" rx="2"/>
+              <line x1="2" y1="10" x2="22" y2="10"/>
             </svg>
           </div>
-          <h3>Punto de venta</h3>
-          <p>Registra ventas y controla caja. Reportes financieros en tiempo real.</p>
-        </div>
-
-        <div class="card">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
-            </svg>
-          </div>
-          <h3>Inventario</h3>
-          <p>Controla productos e insumos. Alertas cuando el stock está bajo.</p>
-        </div>
-
-        <div class="card">
-          <div class="card-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 20V10"/>
-              <path d="M18 20V4"/>
-              <path d="M6 20v-4"/>
-            </svg>
-          </div>
-          <h3>Reportes</h3>
-          <p>Dashboard con métricas: reservas, ingresos, productos más vendidos.</p>
+          <h3>Membresías</h3>
+          <p>Beneficios exclusivos para clientes recurrentes.</p>
         </div>
       </div>
     </div>
   </section>
 
-  <footer class="footer">
-    <div class="brand">
-      <span class="brand-mark" style="width:32px;height:32px;font-size:0.8rem;">BC</span>
-      <span>BarberCloud</span>
+  <div class="stats-strip">
+    <div class="stats-strip-item">
+      <span class="stats-strip-value">15k+</span>
+      <span class="stats-strip-label">Cortes realizados</span>
     </div>
-    <span>Arquitectura serverless con AWS</span>
+    <div class="stats-strip-item">
+      <span class="stats-strip-value">98%</span>
+      <span class="stats-strip-label">Satisfacción</span>
+    </div>
+    <div class="stats-strip-item">
+      <span class="stats-strip-value">24/7</span>
+      <span class="stats-strip-label">Soporte Cloud</span>
+    </div>
+    <div class="stats-strip-item">
+      <span class="stats-strip-value">12</span>
+      <span class="stats-strip-label">Premios Globales</span>
+    </div>
+  </div>
+
+  <footer class="footer footer-columns">
+    <div class="footer-col footer-col-brand">
+      <div class="brand brand-uppercase">
+        <span class="brand-mark" style="width:32px;height:32px;font-size:0.8rem;">BC</span>
+        <span>BarberCloud</span>
+      </div>
+      <p>Redefiniendo la industria del grooming a través de tecnología de vanguardia y una estética impecable.</p>
+    </div>
+    <div class="footer-col">
+      <h4>Plataforma</h4>
+      <a href="#">Precios</a>
+      <a href="#">Características</a>
+      <a href="#">Integraciones</a>
+      <a href="#">API</a>
+    </div>
+    <div class="footer-col">
+      <h4>Empresa</h4>
+      <a href="#">Sobre Nosotros</a>
+      <a href="#">Blog</a>
+      <a href="#">Carreras</a>
+      <a href="#">Contacto</a>
+    </div>
+    <div class="footer-col">
+      <h4>Suscríbete al Newsletter</h4>
+      <p>Recibe tendencias y consejos de gestión mensualmente.</p>
+      <div class="footer-newsletter">
+        <input type="email" placeholder="Tu email" class="form-input" disabled>
+        <button type="button" class="btn btn-primary btn-sm" disabled>Unirse</button>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 BarberCloud. Todos los derechos reservados.</span>
+      <div class="footer-legal">
+        <a href="#">Términos</a>
+        <a href="#">Privacidad</a>
+        <a href="#">Cookies</a>
+      </div>
+    </div>
   </footer>
+</div>
 
   <script src="assets/js/config.js"></script>
   <script src="assets/js/utils.js"></script>
+  <script src="assets/js/landing.js"></script>
 </body>
 </html>

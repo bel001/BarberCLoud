@@ -1,6 +1,23 @@
 import { getUser } from "../lib/auth.js";
 import { ServiceError } from "./errors.js";
 
+export const PUNTOS_POR_RESERVA_ONLINE = 10;
+
+async function otorgarPuntosLealtad(repository, { clienteId, nombre, email }) {
+  const perfil = await repository.getItem(`CLIENTE#${clienteId}`, "PROFILE");
+
+  await repository.putItem({
+    ...perfil,
+    pk: `CLIENTE#${clienteId}`,
+    sk: "PROFILE",
+    tipo: "CLIENTE",
+    clienteId,
+    nombre: perfil?.nombre || nombre,
+    email: perfil?.email || email,
+    puntos: (perfil?.puntos || 0) + PUNTOS_POR_RESERVA_ONLINE
+  });
+}
+
 export function validateOnlineReservationInput(body) {
   const { servicioId, barberoId, fecha, hora } = body;
 
@@ -9,6 +26,14 @@ export function validateOnlineReservationInput(body) {
   }
 
   return { servicioId, barberoId, fecha, hora };
+}
+
+export function assertReservaNoEsPasada(fecha, hora, ahora) {
+  const fechaHora = new Date(`${fecha}T${hora}:00Z`);
+
+  if (fechaHora.getTime() <= ahora.getTime()) {
+    throw new ServiceError("No se puede reservar en una fecha y hora que ya paso");
+  }
 }
 
 export function validatePresentialReservationInput(body) {
@@ -78,8 +103,10 @@ export function createReservationService({
       const body = JSON.parse(event.body || "{}");
       const { servicioId, barberoId, fecha, hora } = validateOnlineReservationInput(body);
       const { clienteId, clienteCorreo, clienteNombre } = getClientIdentity(user);
+      const ahora = clock();
+      assertReservaNoEsPasada(fecha, hora, ahora);
       const reservaId = `res_${idGenerator()}`;
-      const now = clock().toISOString();
+      const now = ahora.toISOString();
       const servicio = await repository.getItem(`SERVICIO#${servicioId}`, "PROFILE");
 
       const reservaCliente = {
@@ -106,8 +133,116 @@ export function createReservationService({
       await auditLog(event, "RESERVA_CREAR", "OK", { reservaId, barberoId, fecha, hora });
       await publishReservationEvent("RESERVA_CREADA", reservaCliente);
 
+      try {
+        await otorgarPuntosLealtad(repository, { clienteId: user.sub, nombre: user.name, email: user.email });
+      } catch {
+        // Los puntos de lealtad no deben bloquear la confirmacion de la reserva
+      }
+
       return {
         message: "Reserva creada correctamente",
+        reservaId
+      };
+    },
+
+    async rescheduleReservation(event) {
+      const user = getUser(event);
+      const reservaId = event.pathParameters?.id;
+      const body = JSON.parse(event.body || "{}");
+      const { fecha: nuevaFecha, hora: nuevaHora } = body;
+
+      if (!reservaId) {
+        throw new ServiceError("reservaId es obligatorio");
+      }
+
+      if (!nuevaFecha || !nuevaHora) {
+        throw new ServiceError("fecha y hora son obligatorios");
+      }
+
+      const ahora = clock();
+      assertReservaNoEsPasada(nuevaFecha, nuevaHora, ahora);
+
+      const reservas = await repository.queryByPk(`CLIENTE#${user.sub}`);
+      const reserva = reservas.find(item =>
+        item.tipo === "RESERVA" &&
+        item.reservaId === reservaId
+      );
+
+      if (!reserva) {
+        throw new ServiceError("Reserva no encontrada para este cliente");
+      }
+
+      if (reserva.estado === "CANCELADA") {
+        throw new ServiceError("La reserva ya se encuentra cancelada");
+      }
+
+      if (reserva.fecha === nuevaFecha && reserva.hora === nuevaHora) {
+        throw new ServiceError("La nueva fecha y hora deben ser distintas a la actual");
+      }
+
+      const now = ahora.toISOString();
+
+      const reservaAnteriorCancelada = {
+        ...reserva,
+        estado: "CANCELADA",
+        canceladoEn: now
+      };
+
+      const reservaReprogramada = {
+        ...reserva,
+        sk: `RESERVA#${nuevaFecha}#${nuevaHora}`,
+        fecha: nuevaFecha,
+        hora: nuevaHora,
+        estado: "CONFIRMADA",
+        reprogramadoEn: now
+      };
+
+      const writes = [
+        {
+          Put: {
+            TableName: tableName,
+            Item: reservaAnteriorCancelada,
+            ConditionExpression: "attribute_not_exists(pk) OR estado <> :cancelada",
+            ExpressionAttributeValues: { ":cancelada": "CANCELADA" }
+          }
+        },
+        {
+          Put: {
+            TableName: tableName,
+            Item: reservaReprogramada,
+            ConditionExpression: "attribute_not_exists(pk) OR (estado = :cancelada AND reservaId = :reservaId)",
+            ExpressionAttributeValues: { ":cancelada": "CANCELADA", ":reservaId": reservaId }
+          }
+        }
+      ];
+
+      if (reserva.barberoId) {
+        writes.push(
+          {
+            Put: {
+              TableName: tableName,
+              Item: { ...reservaAnteriorCancelada, pk: `BARBERO#${reserva.barberoId}`, sk: `RESERVA#${reserva.fecha}#${reserva.hora}` },
+              ConditionExpression: "attribute_not_exists(pk) OR (estado <> :cancelada AND reservaId = :reservaId)",
+              ExpressionAttributeValues: { ":cancelada": "CANCELADA", ":reservaId": reservaId }
+            }
+          },
+          {
+            Put: {
+              TableName: tableName,
+              Item: { ...reservaReprogramada, pk: `BARBERO#${reserva.barberoId}`, sk: `RESERVA#${nuevaFecha}#${nuevaHora}` },
+              ConditionExpression: "attribute_not_exists(pk) OR (estado = :cancelada AND reservaId = :reservaId)",
+              ExpressionAttributeValues: { ":cancelada": "CANCELADA", ":reservaId": reservaId }
+            }
+          }
+        );
+      }
+
+      await repository.transactWrite(writes);
+      await auditLog(event, "RESERVA_REPROGRAMAR", "OK", { reservaId, nuevaFecha, nuevaHora });
+      await publishReservationEvent("RESERVA_REPROGRAMADA", reservaReprogramada);
+
+      return {
+        message: "Reserva reprogramada correctamente",
         reservaId
       };
     },

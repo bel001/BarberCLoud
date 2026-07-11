@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="es" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Barbero | Configuración</title>
+  <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/barbero-panel.css">
+
+<script>
+  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
+</script>
+</head>
+<body>
+  <div class="barber-shell">
+    <aside class="barber-sidebar">
+      <div class="barber-sidebar-brand">
+        <span class="material-symbols-outlined">content_cut</span>
+        <span>BarberCloud</span>
+      </div>
+
+      <div class="barber-identity">
+        <div class="barber-identity-avatar" id="barberoAvatar">B</div>
+        <div>
+          <p class="barber-identity-name" id="barberoNombre">Barbero</p>
+          <p class="barber-identity-role">Estación activa</p>
+        </div>
+      </div>
+
+      <nav class="barber-nav">
+        <a href="barbero-dashboard.html" class="barber-nav-link">
+          <span class="material-symbols-outlined">dashboard</span>
+          <span>Dashboard</span>
+        </a>
+        <a href="barbero.html" class="barber-nav-link">
+          <span class="material-symbols-outlined">calendar_today</span>
+          <span>Agenda</span>
+        </a>
+        <a href="barbero-config.html" class="barber-nav-link active">
+          <span class="material-symbols-outlined">settings</span>
+          <span>Configuración</span>
+        </a>
+      </nav>
+
+      <div class="barber-sidebar-footer">
+        <button class="theme-toggle" title="Cambiar tema">
+          <svg class="icon-sun hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="5"/>
+            <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+          </svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+          </svg>
+        </button>
+        <button type="button" class="nav-link nav-button" data-logout>
+          <span class="material-symbols-outlined">logout</span>
+          Salir
+        </button>
+      </div>
+    </aside>
+
+    <main class="barber-main">
+      <div class="barber-topbar">
+        <h2>Configuración y Seguridad</h2>
+        <p>Tu cuenta, notificaciones y protección de acceso.</p>
+      </div>
+
+      <div class="wizard-progress" style="margin-bottom:24px;">
+        <button type="button" class="btn btn-secondary btn-sm config-tab active" data-tab="general">General</button>
+        <button type="button" class="btn btn-secondary btn-sm config-tab" data-tab="notificaciones">Notificaciones</button>
+        <button type="button" class="btn btn-secondary btn-sm config-tab" data-tab="facturacion">Facturación</button>
+        <button type="button" class="btn btn-secondary btn-sm config-tab" data-tab="seguridad">Seguridad</button>
+      </div>
+
+      <section class="barber-panel config-panel" data-panel="general">
+        <div class="barber-panel-header">
+          <span class="material-symbols-outlined">badge</span>
+          <h3>Datos generales</h3>
+        </div>
+        <div class="flex flex-col gap-2">
+          <p><strong>Nombre:</strong> <span id="infoNombre">-</span></p>
+          <p><strong>Correo:</strong> <span id="infoEmail">-</span></p>
+          <p><strong>Rol:</strong> Barbero</p>
+        </div>
+      </section>
+
+      <section class="barber-panel config-panel hidden" data-panel="notificaciones">
+        <div class="barber-panel-header">
+          <span class="material-symbols-outlined">notifications</span>
+          <h3>Notificaciones</h3>
+        </div>
+        <p class="text-muted">El sistema envía automáticamente un correo al cliente cuando confirmas, reprogramas o cancelas una cita. No hay preferencias adicionales que configurar por ahora.</p>
+      </section>
+
+      <section class="barber-panel config-panel hidden" data-panel="facturacion">
+        <div class="barber-panel-header">
+          <span class="material-symbols-outlined">receipt_long</span>
+          <h3>Facturación</h3>
+        </div>
+        <p class="text-muted mb-4">Resumen de tus ganancias por servicios finalizados.</p>
+        <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="infoGanancias">S/ 0</p>
+      </section>
+
+      <section class="barber-panel config-panel hidden" data-panel="seguridad">
+        <div class="barber-panel-header">
+          <span class="material-symbols-outlined">lock</span>
+          <h3>Verificación en dos pasos (2FA)</h3>
+        </div>
+
+        <div id="estado2faDesactivado">
+          <p class="text-muted mb-4">Agrega una capa extra de seguridad pidiendo un código de tu app de autenticación (Google Authenticator, Authy, etc.) al iniciar sesión.</p>
+          <button class="btn btn-primary" id="btnIniciar2fa" type="button">Activar 2FA</button>
+        </div>
+
+        <div id="panelConfigurar2fa" class="hidden">
+          <p class="text-muted mb-4">Escanea este código en tu app de autenticación, o ingresa la clave manualmente:</p>
+          <p style="font-family:monospace; font-size:1.1rem; word-break:break-all;" id="secreto2fa"></p>
+          <div class="form-group">
+            <label class="form-label" for="codigoConfirmar2fa">Código de 6 dígitos</label>
+            <input type="text" id="codigoConfirmar2fa" class="form-input" maxlength="6" inputmode="numeric">
+          </div>
+          <button class="btn btn-primary" id="btnConfirmar2fa" type="button">Confirmar y activar</button>
+        </div>
+
+        <div id="estado2faActivado" class="hidden">
+          <p class="text-muted mb-4">
+            <span class="badge badge-success">Activado</span>
+            La verificación en dos pasos está protegiendo tu cuenta.
+          </p>
+          <div class="form-group">
+            <label class="form-label" for="codigoDesactivar2fa">Código actual para desactivar</label>
+            <input type="text" id="codigoDesactivar2fa" class="form-input" maxlength="6" inputmode="numeric">
+          </div>
+          <button class="btn btn-danger-outline" id="btnDesactivar2fa" type="button">Desactivar 2FA</button>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="assets/js/config.js"></script>
+  <script src="assets/js/utils.js"></script>
+  <script src="assets/js/auth.js"></script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/barbero-config.js"></script>
+</body>
+</html>

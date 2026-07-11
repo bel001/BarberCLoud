@@ -95,6 +95,14 @@ const Toast = {
   }
 };
 
+// ==================== TIME FORMATTING ====================
+const formatHora12h = (hora) => {
+  const [h, m] = String(hora).split(":").map(Number);
+  const periodo = h >= 12 ? "PM" : "AM";
+  const hora12 = h % 12 === 0 ? 12 : h % 12;
+  return `${hora12}:${String(m).padStart(2, "0")} ${periodo}`;
+};
+
 // ==================== XSS PROTECTION ====================
 const escapeHtml = (str) => {
   if (str == null) return "";
