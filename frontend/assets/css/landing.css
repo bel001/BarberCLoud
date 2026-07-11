@@ -1,0 +1,270 @@
+/* Paleta lima/verde acotada a la landing publica: mismo mecanismo que
+   barbero-panel.css, sobreescribe las variables de app.css solo dentro
+   de .landing-shell para no afectar el resto de paginas. */
+.landing-shell {
+  --bg-primary: #131413;
+  --bg-secondary: #1b1c1b;
+  --bg-card: #1f201f;
+  --bg-card-hover: #292a29;
+  --bg-input: #131413;
+  --text-primary: #e4e2e0;
+  --text-secondary: #c8c8b2;
+  --text-muted: #91927e;
+  --accent: #c0cf51;
+  --accent-hover: #cddc6e;
+  --accent-gradient: linear-gradient(135deg, #c0cf51, #9aa83f);
+  --accent-glow: rgba(192,207,81,0.25);
+  --border: rgba(145,146,126,0.18);
+  --border-hover: rgba(145,146,126,0.35);
+
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.brand-uppercase { text-transform: uppercase; letter-spacing: 0.04em; }
+.hero h1 span { color: var(--accent); }
+
+/* ==================== HERO (foto real de la barberia) ==================== */
+.hero-photo::before {
+  left: 50%;
+  right: auto;
+  width: 100vw;
+  transform: translateX(-50%);
+  background:
+    linear-gradient(100deg, var(--bg-primary) 22%, rgba(19,20,19,0.5) 48%, rgba(19,20,19,0.2) 100%),
+    url('../img/BARBER.jpg');
+  background-size: cover;
+  background-position: center;
+}
+
+.hero-trust {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 28px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+}
+
+.hero-trust-avatars { display: flex; }
+.hero-trust-avatars span {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--bg-card);
+  border: 2px solid var(--bg-primary);
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 0.8rem;
+  margin-left: -10px;
+}
+.hero-trust-avatars span:first-child { margin-left: 0; }
+.hero-trust p { color: var(--text-secondary); font-size: 0.9rem; }
+.hero-trust strong { color: var(--accent); }
+
+.hero-card {
+  margin-top: 480px;
+  margin-left: auto;
+  max-width: 420px;
+  padding: 20px 22px;
+}
+.hero-card .hero-metric { gap: 16px; }
+.hero-card h3 { font-size: 1.05rem; margin-bottom: 12px; padding-top: 4px; }
+.hero-card .hero-metric { padding: 10px 0; }
+.hero-card .hero-metric:last-of-type { border-bottom: none; }
+
+.hero-card-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: 16px;
+  padding: 12px;
+  background: transparent;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  color: var(--accent);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.hero-card-toggle:hover { background: var(--bg-card-hover); border-color: var(--accent); }
+.hero-card-toggle svg { width: 16px; height: 16px; transition: transform 0.2s ease; }
+.hero-card-toggle.is-expanded svg { transform: rotate(180deg); }
+
+/* ==================== SECTION HEADER (split con link) ==================== */
+.section-header-split {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  text-align: left;
+  max-width: none;
+}
+
+/* ==================== BENTO SERVICES GRID ==================== */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-auto-rows: minmax(160px, auto);
+  gap: 24px;
+}
+
+.bento-grid .card:first-child {
+  grid-column: span 2;
+  min-height: 220px;
+}
+
+.card-photo {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  position: relative;
+  background:
+    linear-gradient(180deg, transparent 35%, rgba(0,0,0,0.85) 100%),
+    url('../img/BARBER.jpg');
+  background-size: cover;
+  background-position: center 30%;
+  overflow: hidden;
+}
+
+.card-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: var(--accent);
+  color: #1a1e00;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 4px 12px;
+  border-radius: 50px;
+}
+
+@media (max-width: 760px) {
+  .bento-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 560px) {
+  .bento-grid { grid-template-columns: 1fr; }
+  .bento-grid .card:first-child { grid-column: span 1; }
+  .section-header-split { flex-direction: column; align-items: flex-start; }
+}
+
+/* ==================== SERVICE PRICE CARDS ==================== */
+.price-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.price-card {
+  display: flex;
+  flex-direction: column;
+  padding: 28px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: var(--transition);
+}
+
+.price-card:hover { border-color: var(--border-hover); background: var(--bg-card-hover); }
+
+.price-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.price-tag {
+  flex-shrink: 0;
+  background: var(--accent);
+  color: #1a1e00;
+  font-weight: 800;
+  font-size: 0.95rem;
+  padding: 6px 14px;
+  border-radius: 50px;
+}
+
+.price-card-duration { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px; }
+.price-card-cta { margin-top: auto; text-align: center; }
+
+@media (max-width: 760px) {
+  .price-grid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 560px) {
+  .price-grid { grid-template-columns: 1fr; }
+}
+
+/* ==================== FOOTER A COLUMNAS ==================== */
+.footer-columns {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr 1fr 1.2fr;
+  gap: 32px;
+  text-align: left;
+  padding: 64px 24px 24px;
+  align-items: start;
+}
+
+.footer-col-brand p { color: var(--text-muted); font-size: 0.9rem; margin-top: 12px; line-height: 1.6; }
+.footer-col h4 { font-size: 0.9rem; margin-bottom: 16px; }
+.footer-col a {
+  display: block;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  margin-bottom: 10px;
+}
+.footer-col a:hover { color: var(--accent); }
+.footer-col p { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 16px; }
+
+.footer-newsletter { display: flex; gap: 8px; }
+.footer-newsletter .form-input { padding: 10px 14px; }
+
+.footer-bottom {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 40px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
+.footer-legal { display: flex; gap: 20px; }
+.footer-legal a { color: var(--text-muted); }
+.footer-legal a:hover { color: var(--accent); }
+
+@media (max-width: 900px) {
+  .footer-columns { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 560px) {
+  .footer-columns { grid-template-columns: 1fr; }
+}
+
+/* ==================== STATS STRIP ==================== */
+.stats-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-around;
+  gap: 24px;
+  padding: 48px 24px;
+  background: var(--bg-secondary);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+
+.stats-strip-item { text-align: center; }
+.stats-strip-value { display: block; font-size: 1.6rem; font-weight: 800; color: var(--accent); }
+.stats-strip-label { font-size: 0.75rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.08em; }

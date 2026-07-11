@@ -1,25 +1,44 @@
 const session = AUTH.requireSession();
 
-const escapeHtml = (str) => {
-  if (str == null) return "";
-  const s = String(str);
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-};
+function mostrarIdentidad() {
+  const nombre = session.name || session.email || "Cliente";
+  document.getElementById("clienteNombre").textContent = nombre;
+  document.getElementById("clienteAvatar").textContent = nombre.charAt(0).toUpperCase();
+}
 
-async function cargarReservas() {
-  if (!session) return;
+function getEstadoBadge(estado) {
+  const badges = {
+    'CONFIRMADA': 'success',
+    'CANCELADA': 'danger',
+    'PENDIENTE': 'warning',
+    'COMPLETADA': 'info'
+  };
+  return badges[estado] || 'info';
+}
+
+function esFutura(reserva) {
+  return reserva.estado === "CONFIRMADA" && new Date(`${reserva.fecha}T${reserva.hora}:00Z`).getTime() > Date.now();
+}
+
+async function cargarDashboard() {
+  document.getElementById("saludoCliente").textContent = `Hola, ${session.name || "cliente"}`;
 
   const container = document.getElementById("reservas");
 
   try {
     const data = await API.get("/cliente/reservas", session.token);
+    const reservas = data.reservas || [];
 
-    if (!Array.isArray(data) || data.length === 0) {
+    document.getElementById("statPuntos").textContent = data.puntos || 0;
+
+    const proximas = reservas.filter(esFutura).sort((a, b) => `${a.fecha}${a.hora}`.localeCompare(`${b.fecha}${b.hora}`));
+    const proxima = proximas[0];
+
+    document.getElementById("statProximaCita").textContent = proxima
+      ? `${formatDate(proxima.fecha)} · ${formatHora12h(proxima.hora)}`
+      : "Sin citas próximas";
+
+    if (reservas.length === 0) {
       container.innerHTML = `
         <div class="card" style="text-align:center;padding:40px;">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:64px;height:64px;margin:0 auto 16px;color:var(--text-muted);">
@@ -35,39 +54,26 @@ async function cargarReservas() {
       return;
     }
 
-    container.innerHTML = data.map(item => `
+    const recientes = [...reservas]
+      .sort((a, b) => `${b.fecha}${b.hora}`.localeCompare(`${a.fecha}${a.hora}`))
+      .slice(0, 3);
+
+    container.innerHTML = recientes.map(item => `
       <div class="list-item">
         <div class="list-item-info">
           <div class="list-item-title">
-            ${escapeHtml(item.servicioId)}
+            ${escapeHtml(item.servicioNombre || item.servicioId)}
             <span class="badge badge-${getEstadoBadge(item.estado)}">${escapeHtml(item.estado)}</span>
           </div>
           <div class="list-item-subtitle">
-            📅 ${escapeHtml(item.fecha)} • ⏰ ${escapeHtml(item.hora)}
+            📅 ${escapeHtml(item.fecha)} • ⏰ ${escapeHtml(formatHora12h(item.hora))}
           </div>
         </div>
-        ${item.estado !== "CANCELADA" ? `
-          <div class="list-item-actions">
-            <button class="btn btn-secondary btn-sm" onclick="cancelarReserva('${escapeHtml(item.reservaId)}')">
-              Cancelar
-            </button>
-          </div>
-        ` : ''}
       </div>
     `).join("");
   } catch (error) {
     container.innerHTML = `<div class="alert alert-error">Error al cargar reservas: ${escapeHtml(error.message)}</div>`;
   }
-}
-
-function getEstadoBadge(estado) {
-  const badges = {
-    'CONFIRMADA': 'success',
-    'CANCELADA': 'danger',
-    'PENDIENTE': 'warning',
-    'COMPLETADA': 'info'
-  };
-  return badges[estado] || 'info';
 }
 
 async function confirmarPendiente() {
@@ -85,7 +91,7 @@ async function confirmarPendiente() {
     if (response.reservaId) {
       localStorage.removeItem("reserva_pendiente");
       Toast.show(`Reserva confirmada: ${response.reservaId}`, "success");
-      cargarReservas();
+      cargarDashboard();
     } else {
       Toast.show(response.error || "Error al confirmar", "error");
     }
@@ -94,19 +100,8 @@ async function confirmarPendiente() {
   }
 }
 
-async function cancelarReserva(reservaId) {
-  if (!confirm("¿Cancelar esta reserva?")) return;
-
-  try {
-    const response = await API.post(`/reservas/${reservaId}/cancelar`, {}, session.token);
-    Toast.show(response.message || "Reserva cancelada", "success");
-    cargarReservas();
-  } catch (error) {
-    Toast.show(error.message, "error");
-  }
-}
-
 document.addEventListener("DOMContentLoaded", () => {
-  cargarReservas();
+  mostrarIdentidad();
+  cargarDashboard();
   document.getElementById("confirmarPendienteBtn")?.addEventListener("click", confirmarPendiente);
 });

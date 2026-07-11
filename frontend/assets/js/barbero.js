@@ -1,5 +1,11 @@
 const sessionBarbero = AUTH.requireSession();
 
+function mostrarIdentidadBarbero() {
+  const nombre = sessionBarbero.name || sessionBarbero.email || "Barbero";
+  document.getElementById("barberoNombre").textContent = nombre;
+  document.getElementById("barberoAvatar").textContent = nombre.charAt(0).toUpperCase();
+}
+
 async function cargarAgenda() {
   try {
     const data = await API.get("/barbero/agenda", sessionBarbero.token);
@@ -22,18 +28,66 @@ async function cargarAgenda() {
     }
 
     container.innerHTML = citas.map(cita => `
-      <div class="list-item">
-        <div class="list-item-info">
-          <div class="list-item-title">${escapeHtml(cita.clienteNombre)}</div>
-          <div class="list-item-subtitle">
-            📅 ${escapeHtml(cita.fecha)} • ⏰ ${escapeHtml(cita.hora)}
+      <div class="appt-card" style="flex-direction:column; align-items:stretch;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+          <div class="list-item-info">
+            <div class="list-item-title">${escapeHtml(cita.clienteNombre)}</div>
+            <div class="list-item-subtitle">
+              📅 ${escapeHtml(cita.fecha)} • ⏰ ${escapeHtml(cita.hora)} • ${escapeHtml(cita.servicioNombre || cita.servicioId)}
+            </div>
           </div>
+          <span class="badge badge-${estadoBadge(cita.estado)}">${escapeHtml(estadoLabel(cita.estado))}</span>
         </div>
-        <span class="badge badge-info">Programada</span>
+        ${estadoAcciones(cita)}
       </div>
     `).join("");
+
+    document.querySelectorAll("[data-cambiar-estado]").forEach(btn => {
+      btn.addEventListener("click", () => cambiarEstadoCita(btn.dataset.reservaId, btn.dataset.cambiarEstado));
+    });
   } catch (error) {
     Toast.show("Error al cargar agenda: " + error.message, "error");
+  }
+}
+
+function estadoBadge(estado) {
+  const badges = { CONFIRMADA: "info", EN_PROCESO: "warning", FINALIZADO: "success", CANCELADA: "danger" };
+  return badges[estado] || "info";
+}
+
+function estadoLabel(estado) {
+  const labels = { CONFIRMADA: "Programada", EN_PROCESO: "En proceso", FINALIZADO: "Finalizado", CANCELADA: "Cancelada" };
+  return labels[estado] || estado;
+}
+
+function estadoAcciones(cita) {
+  if (cita.estado === "CONFIRMADA") {
+    return `
+      <div class="list-item-actions" style="margin-top:10px;">
+        <button class="btn btn-secondary btn-sm" type="button" data-reserva-id="${escapeHtml(cita.reservaId)}" data-cambiar-estado="EN_PROCESO">Iniciar</button>
+        <button class="btn btn-secondary btn-sm" type="button" data-reserva-id="${escapeHtml(cita.reservaId)}" data-cambiar-estado="CANCELADA">Cancelar</button>
+      </div>
+    `;
+  }
+
+  if (cita.estado === "EN_PROCESO") {
+    return `
+      <div class="list-item-actions" style="margin-top:10px;">
+        <button class="btn btn-primary btn-sm" type="button" data-reserva-id="${escapeHtml(cita.reservaId)}" data-cambiar-estado="FINALIZADO">Finalizar</button>
+      </div>
+    `;
+  }
+
+  return "";
+}
+
+async function cambiarEstadoCita(reservaId, estado) {
+  try {
+    const response = await API.post(`/barbero/citas/${reservaId}/estado`, { estado }, sessionBarbero.token);
+    Toast.show(response.message || "Estado actualizado", "success");
+    await cargarAgenda();
+  } catch (error) {
+    Toast.show(error.message, "error");
   }
 }
 
@@ -85,6 +139,7 @@ async function registrarInsumo(event) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  mostrarIdentidadBarbero();
   cargarAgenda();
   cargarInsumos();
   document.getElementById("formInsumo").addEventListener("submit", registrarInsumo);

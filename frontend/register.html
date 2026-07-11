@@ -5,13 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BarberCloud | Crear Cuenta</title>
   <link rel="stylesheet" href="assets/css/app.css">
+  <link rel="stylesheet" href="assets/css/barbero-panel.css">
 
 <script>
   (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
 </script>
 </head>
 <body>
-  <div class="auth-page">
+  <div class="auth-page barber-theme">
+    <a href="index.html" class="auth-back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <line x1="19" y1="12" x2="5" y2="12"/>
+        <polyline points="12 19 5 12 12 5"/>
+      </svg>
+      Volver
+    </a>
+
     <div class="auth-card">
       <a href="index.html" class="brand">
         <span class="brand-mark">BC</span>
@@ -76,17 +85,7 @@
   <script src="assets/js/config.js"></script>
   <script src="assets/js/utils.js"></script>
   <script src="assets/js/auth.js"></script>
-  <script>
-    document.getElementById('register-form').addEventListener('submit', (e) => {
-      e.preventDefault();
-
-      if (BARBERCLOUD_CONFIG.AUTH_MODE === 'cognito') {
-        AUTH.registerWithCognito();
-        return;
-      }
-
-      Toast.show('En modo local usa las cuentas demo del README', 'info');
-    });
-  </script>
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/register.js"></script>
 </body>
 </html>

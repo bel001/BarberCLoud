@@ -32,7 +32,7 @@ const AUTH = {
     const routes = {
       CLIENTE: "cliente.html",
       SECRETARIA: "secretaria.html",
-      BARBERO: "barbero.html",
+      BARBERO: "barbero-dashboard.html",
       ADMIN: "admin.html"
     };
 
