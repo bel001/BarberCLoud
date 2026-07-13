@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 900" role="img" aria-labelledby="title desc">
+<title id="title">Barbero realizando un corte profesional</title><desc id="desc">Ilustración editorial de un barbero trabajando con máquina y peine.</desc>
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#0b1118"/><stop offset="1" stop-color="#25170d"/></linearGradient>
+  <linearGradient id="skin" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#c57a4a"/><stop offset="1" stop-color="#6b3422"/></linearGradient>
+  <linearGradient id="cape" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#e8ebed"/><stop offset="1" stop-color="#90979e"/></linearGradient>
+  <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#ffd58b"/><stop offset="1" stop-color="#9a5b20"/></linearGradient>
+  <filter id="shadow"><feDropShadow dx="0" dy="22" stdDeviation="22" flood-opacity=".55"/></filter>
+  <pattern id="stripe" width="26" height="26" patternUnits="userSpaceOnUse" patternTransform="rotate(18)"><rect width="13" height="26" fill="#141b21" fill-opacity=".12"/></pattern>
+</defs>
+<rect width="1200" height="900" fill="url(#bg)"/>
+<circle cx="1020" cy="150" r="280" fill="#f0ae52" fill-opacity=".11"/>
+<path d="M0 680C210 560 430 595 630 690s360 78 570-24v234H0z" fill="#05080c"/>
+<g>
+  <path d="M255 805q35-255 240-335 235-91 410 112 70 81 96 223z" fill="url(#cape)"/>
+  <path d="M255 805q35-255 240-335 235-91 410 112 70 81 96 223z" fill="url(#stripe)"/>
+  <path d="M465 469q-9-145 112-208 160-83 286 30 89 80 53 210-34 121-160 166-136 48-233-43-47-44-58-155z" fill="url(#skin)"/>
+  <path d="M477 390q42-166 213-172 156-6 239 118-96-30-167-4-129 48-285 58z" fill="#11171d"/>
+  <path d="M862 386q65 52 57 138-20 147-177 166 58-56 63-134 5-81 57-170z" fill="#1b2127"/>
+  <path d="M618 464q72-44 143-5" fill="none" stroke="#2c1510" stroke-width="14" stroke-linecap="round"/>
+  <path d="M643 531q70 30 123-3" fill="none" stroke="#532718" stroke-width="12" stroke-linecap="round"/>
+  <path d="M690 568q76 36 134-20-13 93-94 105-78 11-110-72z" fill="#171a1e"/>
+</g>
+<g>
+  <path d="M730 80q90 32 117 98l-53 180-108-50z" fill="#111820"/>
+  <path d="M688 310q54-43 111-14l-19 97-119-26z" fill="url(#skin)"/>
+  <path d="M661 365q55-25 119 28l-14 60-129-35z" fill="#111820"/>
+  <rect x="590" y="360" width="174" height="74" rx="27" transform="rotate(-18 590 360)" fill="#252d35" stroke="#e1aa5a" stroke-width="8"/>
+  <rect x="553" y="375" width="78" height="38" rx="14" transform="rotate(-18 553 375)" fill="#d6dbe0"/>
+  <path d="M426 190q112 12 190 92l-59 85q-99-76-195-73z" fill="#0b1016"/>
+  <path d="M456 292q40-35 96 4l-23 93-113-36z" fill="url(#skin)"/>
+  <path d="M419 352q51-11 112 36l-7 68-128-46z" fill="#10161c"/>
+  <g transform="translate(356 282) rotate(-14)"><rect width="215" height="30" rx="12" fill="url(#gold)"/><path d="M25 0v30M55 0v30M85 0v30M115 0v30M145 0v30M175 0v30" stroke="#4b2b14" stroke-width="8"/></g>
+</g>
+<path d="M85 120h310" stroke="#f1b45c" stroke-opacity=".4" stroke-width="4"/><text x="85" y="90" fill="#f5d39a" font-family="system-ui, sans-serif" font-weight="800" font-size="42" letter-spacing="7">PRECISIÓN</text>
+</svg>
