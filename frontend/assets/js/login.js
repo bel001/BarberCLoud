@@ -2,7 +2,7 @@ document.getElementById("login-form").addEventListener("submit", async (event) =
   event.preventDefault();
 
   if (BARBERCLOUD_CONFIG.AUTH_MODE === "cognito") {
-    AUTH.loginWithCognito();
+    await AUTH.loginWithCognito();
     return;
   }
 

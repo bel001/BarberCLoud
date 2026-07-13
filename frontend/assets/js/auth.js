@@ -1,4 +1,6 @@
 const AUTH = {
+  oauthStorageKey: "barbercloud_oauth_transaction",
+
   saveSession(session) {
     localStorage.setItem("barbercloud_session", JSON.stringify(session));
   },
@@ -70,26 +72,70 @@ const AUTH = {
     this.redirectByRole(session.role);
   },
 
-  loginWithCognito() {
+  base64Url(bytes) {
+    const binary = String.fromCharCode(...bytes);
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+  },
+
+  randomBase64Url(byteLength) {
+    const bytes = new Uint8Array(byteLength);
+    crypto.getRandomValues(bytes);
+    return this.base64Url(bytes);
+  },
+
+  async sha256Base64Url(value) {
+    const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+    return this.base64Url(new Uint8Array(digest));
+  },
+
+  async startCognitoFlow(path) {
+    const state = this.randomBase64Url(32);
+    const verifier = this.randomBase64Url(64);
+    const challenge = await this.sha256Base64Url(verifier);
+
+    sessionStorage.setItem(this.oauthStorageKey, JSON.stringify({
+      state,
+      verifier,
+      createdAt: Date.now()
+    }));
+
     const params = new URLSearchParams({
       client_id: BARBERCLOUD_CONFIG.COGNITO_CLIENT_ID,
       response_type: "code",
       scope: "email openid profile",
-      redirect_uri: BARBERCLOUD_CONFIG.REDIRECT_URI
+      redirect_uri: BARBERCLOUD_CONFIG.REDIRECT_URI,
+      state,
+      code_challenge: challenge,
+      code_challenge_method: "S256"
     });
 
-    window.location.href = `${BARBERCLOUD_CONFIG.COGNITO_DOMAIN}/login?${params.toString()}`;
+    window.location.href = `${BARBERCLOUD_CONFIG.COGNITO_DOMAIN}/${path}?${params.toString()}`;
+  },
+
+  loginWithCognito() {
+    return this.startCognitoFlow("login");
   },
 
   registerWithCognito() {
-    const params = new URLSearchParams({
-      client_id: BARBERCLOUD_CONFIG.COGNITO_CLIENT_ID,
-      response_type: "code",
-      scope: "email openid profile",
-      redirect_uri: BARBERCLOUD_CONFIG.REDIRECT_URI
-    });
+    return this.startCognitoFlow("signup");
+  },
 
-    window.location.href = `${BARBERCLOUD_CONFIG.COGNITO_DOMAIN}/signup?${params.toString()}`;
+  consumeOAuthTransaction(receivedState) {
+    const raw = sessionStorage.getItem(this.oauthStorageKey);
+    sessionStorage.removeItem(this.oauthStorageKey);
+
+    if (!raw || !receivedState) {
+      throw new Error("No se encontro una solicitud de autenticacion valida.");
+    }
+
+    const transaction = JSON.parse(raw);
+    const expired = Date.now() - transaction.createdAt > 10 * 60 * 1000;
+
+    if (expired || transaction.state !== receivedState || !transaction.verifier) {
+      throw new Error("La solicitud de autenticacion no es valida o expiro.");
+    }
+
+    return transaction;
   },
 
   decodeJwt(token) {
@@ -102,18 +148,27 @@ const AUTH = {
   },
 
   async handleCognitoCallback() {
-    const code = new URLSearchParams(window.location.search).get("code");
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    const oauthError = params.get("error_description") || params.get("error");
+
+    if (oauthError) {
+      sessionStorage.removeItem(this.oauthStorageKey);
+      throw new Error(oauthError);
+    }
 
     if (!code) {
-      document.getElementById("resultado").innerText = "No se recibio codigo de autenticacion.";
-      return;
+      throw new Error("No se recibio codigo de autenticacion.");
     }
+
+    const transaction = this.consumeOAuthTransaction(params.get("state"));
 
     const body = new URLSearchParams({
       grant_type: "authorization_code",
       client_id: BARBERCLOUD_CONFIG.COGNITO_CLIENT_ID,
       code,
-      redirect_uri: BARBERCLOUD_CONFIG.REDIRECT_URI
+      redirect_uri: BARBERCLOUD_CONFIG.REDIRECT_URI,
+      code_verifier: transaction.verifier
     });
 
     const response = await fetch(`${BARBERCLOUD_CONFIG.COGNITO_DOMAIN}/oauth2/token`, {
@@ -127,8 +182,7 @@ const AUTH = {
     const tokens = await response.json();
 
     if (!response.ok) {
-      document.getElementById("resultado").innerText = tokens.error_description || "No se pudo completar el login.";
-      return;
+      throw new Error(tokens.error_description || "No se pudo completar el login.");
     }
 
     const claims = this.decodeJwt(tokens.id_token);
