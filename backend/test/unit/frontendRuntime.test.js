@@ -148,4 +148,23 @@ describe("frontend en configuracion AWS", () => {
     await expect(AUTH.handleCognitoCallback()).rejects.toThrow("no es valida o expiro");
     expect(globals.fetch).not.toHaveBeenCalled();
   });
+
+  it("oculta controles exclusivos del modo local al usar Cognito", () => {
+    const toggle = vi.fn();
+    const AUTH = loadFrontendScript("auth.js", {
+      BARBERCLOUD_CONFIG: { AUTH_MODE: "cognito" },
+      URLSearchParams,
+      atob,
+      btoa,
+      decodeURIComponent,
+      localStorage: createStorage(),
+      window: { location: {} },
+      document: {
+        querySelectorAll: vi.fn().mockReturnValue([{ classList: { toggle } }])
+      }
+    }, "AUTH");
+
+    expect(AUTH.enableLocalAuthControls()).toBe(false);
+    expect(toggle).toHaveBeenCalledWith("hidden", true);
+  });
 });

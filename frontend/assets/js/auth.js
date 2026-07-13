@@ -50,6 +50,14 @@ const AUTH = {
     return session;
   },
 
+  enableLocalAuthControls() {
+    const isLocal = BARBERCLOUD_CONFIG.AUTH_MODE === "local";
+    document.querySelectorAll("[data-local-auth-only]").forEach(element => {
+      element.classList.toggle("hidden", !isLocal);
+    });
+    return isLocal;
+  },
+
   redirectByRole(role) {
     const routes = {
       CLIENTE: "cliente.html",

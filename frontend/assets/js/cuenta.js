@@ -95,6 +95,9 @@ document.addEventListener("DOMContentLoaded", () => {
   mostrarIdentidad();
   cargarDatosCuenta();
   document.getElementById("formDatos").addEventListener("submit", guardarDatos);
+
+  if (!AUTH.enableLocalAuthControls()) return;
+
   document.getElementById("formPassword").addEventListener("submit", cambiarPassword);
   document.getElementById("btnEliminarCuenta").addEventListener("click", eliminarCuenta);
 });

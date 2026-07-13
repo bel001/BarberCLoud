@@ -98,11 +98,15 @@ async function desactivar2fa() {
 document.addEventListener("DOMContentLoaded", () => {
   mostrarIdentidadConfig();
   cargarGanancias();
-  cargarEstado2fa();
+  const hasLocalAuthControls = AUTH.enableLocalAuthControls();
 
   document.querySelectorAll(".config-tab").forEach(btn => {
     btn.addEventListener("click", () => cambiarTab(btn.dataset.tab));
   });
+
+  if (!hasLocalAuthControls) return;
+
+  cargarEstado2fa();
 
   document.getElementById("btnIniciar2fa").addEventListener("click", iniciar2fa);
   document.getElementById("btnConfirmar2fa").addEventListener("click", confirmar2fa);

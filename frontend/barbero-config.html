@@ -67,7 +67,7 @@
         <button type="button" class="btn btn-secondary btn-sm config-tab active" data-tab="general">General</button>
         <button type="button" class="btn btn-secondary btn-sm config-tab" data-tab="notificaciones">Notificaciones</button>
         <button type="button" class="btn btn-secondary btn-sm config-tab" data-tab="facturacion">Facturación</button>
-        <button type="button" class="btn btn-secondary btn-sm config-tab" data-tab="seguridad">Seguridad</button>
+        <button type="button" class="btn btn-secondary btn-sm config-tab" data-tab="seguridad" data-local-auth-only>Seguridad</button>
       </div>
 
       <section class="barber-panel config-panel" data-panel="general">
@@ -99,7 +99,7 @@
         <p id="infoGanancias" class="text-stat font-extrabold text-accent">S/ 0</p>
       </section>
 
-      <section class="barber-panel config-panel hidden" data-panel="seguridad">
+      <section class="barber-panel config-panel hidden" data-panel="seguridad" data-local-auth-only>
         <div class="barber-panel-header">
           <span class="material-symbols-outlined">lock</span>
           <h3>Verificación en dos pasos (2FA)</h3>

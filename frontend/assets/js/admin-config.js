@@ -114,6 +114,9 @@ async function desactivar2fa() {
 
 document.addEventListener("DOMContentLoaded", () => {
   mostrarIdentidadAdminConfig();
+
+  if (!AUTH.enableLocalAuthControls()) return;
+
   cargarEstado2fa();
 
   document.getElementById("formPassword").addEventListener("submit", cambiarPasswordAdmin);
