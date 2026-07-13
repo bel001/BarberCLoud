@@ -1,18 +1,8 @@
-import { scanByTipo } from "../lib/dynamodb.js";
-import { ok, serverError } from "../lib/response.js";
+import { wrap } from '../lib/lambda.js';
+import { scanByType } from '../lib/repository.js';
 
-export async function handler(_event) {
-  try {
-    const servicios = await scanByTipo("SERVICIO");
-    const inventario = await scanByTipo("INVENTARIO");
-
-    return ok({
-      message: "Configuracion operativa actualizada",
-      servicios: servicios.length,
-      inventario: inventario.length,
-      actualizadoEn: new Date().toISOString()
-    });
-  } catch (error) {
-    return serverError(error);
-  }
-}
+export const handler = wrap(async () => {
+  const appointments = await scanByType('APPOINTMENT');
+  const expired = appointments.filter((item) => item.status === 'PENDIENTE' && `${item.date}T${item.time}` < new Date().toISOString().slice(0, 16));
+  return { checked: appointments.length, expiredCandidates: expired.length };
+});
