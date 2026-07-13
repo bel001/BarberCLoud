@@ -1,44 +1,59 @@
-export function getClaims(event) {
-  return event?.requestContext?.authorizer?.jwt?.claims || event?.requestContext?.authorizer?.claims || {};
+import crypto from 'node:crypto';
+import { config } from './config.js';
+import { forbidden, unauthorized } from './errors.js';
+
+const encode = (value) => Buffer.from(JSON.stringify(value)).toString('base64url');
+const decode = (value) => JSON.parse(Buffer.from(value, 'base64url').toString('utf8'));
+
+export function hashPassword(password) {
+  return crypto.createHash('sha256').update(String(password)).digest('hex');
 }
 
-export function getGroups(event) {
-  const claims = getClaims(event);
-  const groups = claims["cognito:groups"] || claims.role;
-
-  if (!groups) return [];
-  if (Array.isArray(groups)) return groups;
-
-  return String(groups)
-    .replace("[", "")
-    .replace("]", "")
-    .split(",")
-    .map(group => group.trim());
+export function createToken(user, expiresInSeconds = 60 * 60 * 8) {
+  const payload = {
+    sub: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    exp: Math.floor(Date.now() / 1000) + expiresInSeconds
+  };
+  const encoded = encode(payload);
+  const signature = crypto.createHmac('sha256', config.authSecret).update(encoded).digest('base64url');
+  return `${encoded}.${signature}`;
 }
 
-export function hasRole(event, allowedRoles) {
-  const groups = getGroups(event);
-  return groups.some(group => allowedRoles.includes(group));
+export function verifyToken(token) {
+  if (!token || !token.includes('.')) throw unauthorized();
+  const [encoded, signature] = token.split('.');
+  const expected = crypto.createHmac('sha256', config.authSecret).update(encoded).digest('base64url');
+  const valid = signature.length === expected.length && crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
+  if (!valid) throw unauthorized('Sesión inválida');
+  const payload = decode(encoded);
+  if (payload.exp < Math.floor(Date.now() / 1000)) throw unauthorized('La sesión expiró');
+  return payload;
 }
 
-export function requireRole(event, allowedRoles) {
-  if (!hasRole(event, allowedRoles)) {
-    const error = new Error("Acceso no autorizado");
-    error.statusCode = 403;
-    throw error;
+export function authMiddleware(req, _res, next) {
+  try {
+    const header = req.headers.authorization || '';
+    req.user = verifyToken(header.replace(/^Bearer\s+/i, ''));
+    next();
+  } catch (error) {
+    next(error);
   }
 }
 
-export function getPrimaryRole(event) {
-  return getGroups(event)[0] || "ANONIMO";
-}
+const permissions = {
+  CLIENTE: ['CLIENTE'],
+  BARBERO: ['BARBERO', 'ADMIN'],
+  SECRETARIA: ['SECRETARIA', 'ADMIN'],
+  ADMIN: ['ADMIN']
+};
 
-export function getUser(event) {
-  const claims = getClaims(event);
-
-  return {
-    sub: claims.sub,
-    email: claims.email,
-    name: claims.name || claims.email || "Usuario"
+export function allow(...roles) {
+  return (req, _res, next) => {
+    const allowed = roles.flatMap((role) => permissions[role] || [role]);
+    if (!req.user || !allowed.includes(req.user.role)) return next(forbidden());
+    next();
   };
 }
