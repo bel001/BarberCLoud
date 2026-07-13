@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { lambdaEvent, parseBody } from "../helpers/events.js";
 
+// Pruebas de handlers operativos con dependencias AWS simuladas.
+// Comprueban permisos, validaciones y escrituras esperadas.
 const dynamodbMocks = vi.hoisted(() => ({
   putItem: vi.fn(),
   getItem: vi.fn(),
@@ -91,7 +93,7 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("barbero consulta agenda propia desde su perfil", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     dynamodbMocks.scanByTipo.mockResolvedValue([{ tipo: "BARBERO", email: "barbero@demo.local", barberoId: "barbero-1" }]);
     dynamodbMocks.queryByPk.mockResolvedValue([{ tipo: "RESERVA", pk: "BARBERO#barbero-1", fecha: "2026-07-10", hora: "09:00" }]);
     const event = lambdaEvent({
@@ -99,27 +101,27 @@ describe("handlers operativos del diagrama", () => {
       user: { sub: "usuario-cognito", email: "barbero@demo.local", name: "Barbero Demo" }
     });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await agendaHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(dynamodbMocks.queryByPk).toHaveBeenCalledWith("BARBERO#barbero-1");
     expect(response.statusCode).toBe(200);
     expect(parseBody(response).citas).toHaveLength(1);
   });
 
   it("administrador consulta agenda global", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     dynamodbMocks.scanReservas.mockResolvedValue([
       { tipo: "RESERVA", pk: "CLIENTE#1", fecha: "2026-07-10", hora: "09:00" },
       { tipo: "RESERVA", pk: "BARBERO#1", fecha: "2026-07-10", hora: "11:00" },
       { tipo: "RESERVA", pk: "BARBERO#1", fecha: "2026-07-10", hora: "09:00" }
     ]);
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await agendaHandler(lambdaEvent({ role: "ADMIN" }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(parseBody(response).citas).toEqual([
       { tipo: "RESERVA", pk: "BARBERO#1", fecha: "2026-07-10", hora: "09:00" },
@@ -128,23 +130,23 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("barbero usa sub cuando no existe perfil registrado", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     dynamodbMocks.scanByTipo.mockResolvedValue([]);
     dynamodbMocks.queryByPk.mockResolvedValue([]);
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await agendaHandler(lambdaEvent({
       role: "BARBERO",
       user: { sub: "barbero-sub", email: "sin-perfil@demo.local" }
     }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(dynamodbMocks.queryByPk).toHaveBeenCalledWith("BARBERO#barbero-sub");
   });
 
   it("barbero usa id por defecto cuando no hay perfil ni sub", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     dynamodbMocks.scanByTipo.mockResolvedValue([]);
     dynamodbMocks.queryByPk.mockResolvedValue([]);
     const event = {
@@ -161,28 +163,28 @@ describe("handlers operativos del diagrama", () => {
       }
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await agendaHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(dynamodbMocks.queryByPk).toHaveBeenCalledWith("BARBERO#barbero_carlos");
   });
 
   it("mapea error de agenda a 500", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     dynamodbMocks.scanReservas.mockRejectedValue(new Error("fallo agenda"));
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await agendaHandler(lambdaEvent({ role: "ADMIN" }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(500);
     expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 
   it("registra consumo de insumo del barbero", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = lambdaEvent({
       method: "POST",
       role: "BARBERO",
@@ -190,10 +192,10 @@ describe("handlers operativos del diagrama", () => {
       body: { insumoId: "gel", nombre: "Gel", cantidad: 2 }
     });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await insumosHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(201);
     expect(dynamodbMocks.putItem).toHaveBeenCalledWith(expect.objectContaining({
       tipo: "INSUMO_USO",
@@ -203,96 +205,96 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("lista todos los consumos de insumos para administrador", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     dynamodbMocks.scanByTipo.mockResolvedValue([
       { tipo: "INSUMO_USO", barberoId: "barbero-1" },
       { tipo: "INSUMO_USO", barberoId: "barbero-2" }
     ]);
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await insumosHandler(lambdaEvent({ role: "ADMIN" }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(parseBody(response).insumos).toHaveLength(2);
   });
 
   it("lista solo consumos del barbero autenticado", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     dynamodbMocks.scanByTipo.mockResolvedValue([
       { tipo: "INSUMO_USO", barberoId: "barbero-1" },
       { tipo: "INSUMO_USO", barberoId: "barbero-2" }
     ]);
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await insumosHandler(lambdaEvent({
       role: "BARBERO",
       user: { sub: "barbero-1", email: "barbero@demo.local" }
     }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(parseBody(response).insumos).toEqual([{ tipo: "INSUMO_USO", barberoId: "barbero-1" }]);
   });
 
   it("rechaza consumo de insumo sin datos obligatorios", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await insumosHandler(lambdaEvent({
       method: "POST",
       role: "BARBERO",
       body: { insumoId: "gel" }
     }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(400);
     expect(parseBody(response)).toEqual({ error: "insumoId, nombre y cantidad son obligatorios" });
   });
 
   it("rechaza consumo de insumo sin body", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await insumosHandler(lambdaEvent({ method: "POST", role: "BARBERO" }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(400);
     expect(parseBody(response)).toEqual({ error: "insumoId, nombre y cantidad son obligatorios" });
   });
 
   it("mapea error de insumos a 500", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     dynamodbMocks.scanByTipo.mockRejectedValue(new Error("fallo insumos"));
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await insumosHandler(lambdaEvent({ role: "BARBERO" }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(500);
     expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 
   it("lista inventario para secretaria", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     dynamodbMocks.scanByTipo.mockResolvedValue([{ tipo: "INVENTARIO", productoId: "prod-1" }]);
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await inventarioHandler(lambdaEvent({ role: "SECRETARIA" }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(dynamodbMocks.scanByTipo).toHaveBeenCalledWith("INVENTARIO");
     expect(parseBody(response).inventario).toHaveLength(1);
   });
 
   it("registra producto de inventario para secretaria", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = lambdaEvent({
       method: "POST",
       role: "SECRETARIA",
       body: { productoId: "prod-1", nombre: "Gel", stock: 10, precio: 25 }
     });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await inventarioHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(201);
     expect(dynamodbMocks.putItem).toHaveBeenCalledWith(expect.objectContaining({
       tipo: "INVENTARIO",
@@ -303,17 +305,17 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("registra producto con id autogenerado y precio cero por defecto", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = lambdaEvent({
       method: "POST",
       role: "SECRETARIA",
       body: { nombre: "Cera", stock: 5 }
     });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await inventarioHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(201);
     expect(dynamodbMocks.putItem).toHaveBeenCalledWith(expect.objectContaining({
       productoId: "prod_test-id",
@@ -322,47 +324,47 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("rechaza inventario sin datos obligatorios", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await inventarioHandler(lambdaEvent({ method: "POST", role: "SECRETARIA", body: { nombre: "Gel" } }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(400);
     expect(parseBody(response)).toEqual({ error: "nombre y stock son obligatorios" });
   });
 
   it("rechaza inventario sin body", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await inventarioHandler(lambdaEvent({ method: "POST", role: "SECRETARIA" }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(400);
     expect(parseBody(response)).toEqual({ error: "nombre y stock son obligatorios" });
   });
 
   it("mapea error de inventario a 500", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     dynamodbMocks.scanByTipo.mockRejectedValue(new Error("fallo inventario"));
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await inventarioHandler(lambdaEvent({ role: "SECRETARIA" }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(500);
     expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 
   it("administrador guarda servicio de negocio", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = lambdaEvent({
       method: "POST",
       role: "ADMIN",
       body: { servicioId: "fade", nombre: "Fade", precio: 50 }
     });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await negocioHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(201);
     expect(dynamodbMocks.putItem).toHaveBeenCalledWith(expect.objectContaining({
       tipo: "SERVICIO",
@@ -372,29 +374,29 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("administrador lista servicios de negocio", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     dynamodbMocks.scanByTipo.mockResolvedValue([{ servicioId: "fade", nombre: "Fade" }]);
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await negocioHandler(lambdaEvent({ role: "ADMIN" }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(parseBody(response)).toEqual({ servicios: [{ servicioId: "fade", nombre: "Fade" }] });
   });
 
   it("administrador guarda servicio con id y duracion por defecto", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = lambdaEvent({
       method: "POST",
       role: "ADMIN",
       body: { nombre: "Barba", precio: 20 }
     });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await negocioHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(201);
     expect(dynamodbMocks.putItem).toHaveBeenCalledWith(expect.objectContaining({
       servicioId: "servicio_test-id",
@@ -404,23 +406,23 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("rechaza servicio sin nombre o precio", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await negocioHandler(lambdaEvent({
       method: "POST",
       role: "ADMIN",
       body: { nombre: "Barba" }
     }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(400);
     expect(parseBody(response)).toEqual({ error: "nombre y precio son obligatorios" });
   });
 
   it("rechaza servicio sin body", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await negocioHandler(lambdaEvent({ method: "POST", role: "ADMIN" }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(400);
     expect(parseBody(response)).toEqual({ error: "nombre y precio son obligatorios" });
   });
@@ -441,19 +443,19 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("mapea error de negocio a 500", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     dynamodbMocks.scanByTipo.mockRejectedValue(new Error("fallo negocio"));
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await negocioHandler(lambdaEvent({ role: "ADMIN" }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(500);
     expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 
   it("administrador crea personal interno en Cognito y DynamoDB", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     process.env.USER_POOL_ID = "pool-1";
     const event = lambdaEvent({
       method: "POST",
@@ -461,10 +463,10 @@ describe("handlers operativos del diagrama", () => {
       body: { email: "nuevo@demo.local", nombre: "Nuevo", rol: "BARBERO", password: "Temporal123" }
     });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await personalHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(201);
     expect(cognitoSendMock).toHaveBeenCalledTimes(3);
     expect(dynamodbMocks.putItem).toHaveBeenCalledWith(expect.objectContaining({
@@ -475,35 +477,35 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("rechaza crear personal sin campos obligatorios", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await personalHandler(lambdaEvent({ method: "POST", role: "ADMIN", body: { email: "x@demo.local" } }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(400);
     expect(parseBody(response)).toEqual({ error: "email, nombre, rol y password son obligatorios" });
   });
 
   it("rechaza crear personal sin body", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await personalHandler(lambdaEvent({ method: "POST", role: "ADMIN" }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(400);
     expect(parseBody(response)).toEqual({ error: "email, nombre, rol y password son obligatorios" });
   });
 
   it("crea usuario interno sin Cognito cuando no hay user pool", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = lambdaEvent({
       method: "POST",
       role: "ADMIN",
       body: { userId: "secretaria-1", email: "sec@demo.local", nombre: "Sec", rol: "SECRETARIA", password: "Temporal123" }
     });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await personalHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(201);
     expect(cognitoSendMock).not.toHaveBeenCalled();
     expect(dynamodbMocks.putItem).toHaveBeenCalledWith(expect.objectContaining({
@@ -514,7 +516,7 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("personal compensa eliminando usuario si falla configuracion Cognito", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     process.env.USER_POOL_ID = "pool-1";
     cognitoSendMock
       .mockResolvedValueOnce({})
@@ -526,10 +528,10 @@ describe("handlers operativos del diagrama", () => {
       body: { email: "fallo@demo.local", nombre: "Fallo", rol: "SECRETARIA", password: "x" }
     });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await personalHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(500);
     expect(cognitoCommands.AdminDeleteUserCommand).toHaveBeenCalledWith({
       UserPoolId: "pool-1",
@@ -616,99 +618,99 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("manage services resume servicios e inventario", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     dynamodbMocks.scanByTipo
       .mockResolvedValueOnce([{ servicioId: "fade" }])
       .mockResolvedValueOnce([{ productoId: "gel" }, { productoId: "tijera" }]);
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await manageServicesHandler({});
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(parseBody(response)).toMatchObject({ servicios: 1, inventario: 2 });
   });
 
   it("manage services mapea errores de repositorio", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     dynamodbMocks.scanByTipo.mockRejectedValue(new Error("fallo configuracion"));
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await manageServicesHandler({});
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(500);
     expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 
   it("lambda consumer admin procesa origen EventBridge por defecto", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await lambdaConsumerAdminHandler({});
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(parseBody(response)).toEqual({ message: "Proceso administrativo ejecutado" });
   });
 
   it("lambda consumer admin procesa origen SNS", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await lambdaConsumerAdminHandler({ source: "aws.sns" });
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
   });
 
   it("lambda consumer admin rechaza origen no autorizado", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await lambdaConsumerAdminHandler({ source: "manual.test" });
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(403);
   });
 
   it("lambda consumer de disponibilidad procesa origen SNS de registros", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await lambdaConsumerAvailHandler({ Records: [{ EventSource: "aws.sns" }] });
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(parseBody(response)).toEqual({ message: "Disponibilidad refrescada" });
   });
 
   it("lambda consumer de disponibilidad usa EventBridge por defecto", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await lambdaConsumerAvailHandler({});
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
   });
 
   it("lambda consumer de disponibilidad procesa eventos de EventBridge", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await lambdaConsumerAvailHandler({ source: "aws.events" });
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(dynamodbMocks.scanByTipo).toHaveBeenCalledWith("SERVICIO");
     expect(dynamodbMocks.scanByTipo).toHaveBeenCalledWith("BARBERO");
   });
 
   it("lambda consumer de disponibilidad rechaza origen no autorizado", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await lambdaConsumerAvailHandler({ source: "manual.test" });
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(403);
   });
 
   it("cliente lista solo sus reservas junto con sus puntos de lealtad", async () => {
-    // Arrange
+    // Preparar: incluir reservas y el perfil con puntos del cliente
     dynamodbMocks.queryByPk.mockResolvedValue([{ tipo: "RESERVA", reservaId: "res-1" }, { tipo: "CLIENTE", puntos: 30 }]);
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await misReservasHandler(lambdaEvent({ role: "CLIENTE", user: { sub: "cliente-1" } }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(dynamodbMocks.queryByPk).toHaveBeenCalledWith("CLIENTE#cliente-1");
     expect(parseBody(response)).toEqual({ reservas: [{ tipo: "RESERVA", reservaId: "res-1" }], canjes: [], puntos: 30 });
   });
@@ -787,27 +789,27 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("cliente recibe error interno si falla listado de reservas", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     dynamodbMocks.queryByPk.mockRejectedValue(new Error("fallo reservas"));
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await misReservasHandler(lambdaEvent({ role: "CLIENTE", user: { sub: "cliente-1" } }));
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(500);
     expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 
   it("procesa notificacion SNS de reserva creada", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = {
       Records: [{ Sns: { Message: JSON.stringify({ reserva: { clienteCorreo: "cliente@demo.local", fecha: "2026-07-10", hora: "09:00", reservaId: "res-1" } }) } }]
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await notificarReservaHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(sendReservationEmailMock).toHaveBeenCalledWith(expect.objectContaining({
       to: "cliente@demo.local",
@@ -816,15 +818,15 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("procesa notificacion de reserva creada sin wrapper reserva", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = {
       Records: [{ Sns: { Message: JSON.stringify({ clienteCorreo: "cliente@demo.local", fecha: "2026-07-10", hora: "09:00", reservaId: "res-1" }) } }]
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await notificarReservaHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(sendReservationEmailMock).toHaveBeenCalledWith(expect.objectContaining({
       to: "cliente@demo.local",
@@ -833,30 +835,30 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("mapea error de notificacion de reserva", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     sendReservationEmailMock.mockRejectedValue(new Error("fallo correo"));
     const event = {
       Records: [{ Sns: { Message: JSON.stringify({ reserva: { clienteCorreo: "cliente@demo.local" } }) } }]
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await notificarReservaHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(500);
     expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 
   it("procesa notificacion SNS de reserva cancelada", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = {
       Records: [{ Sns: { Message: JSON.stringify({ reserva: { clienteCorreo: "cliente@demo.local", fecha: "2026-07-10", hora: "09:00", reservaId: "res-1" } }) } }]
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await notificarCancelacionHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(sendReservationEmailMock).toHaveBeenCalledWith(expect.objectContaining({
       to: "cliente@demo.local",
@@ -865,15 +867,15 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("procesa notificacion de cancelacion sin wrapper reserva", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = {
       Records: [{ Sns: { Message: JSON.stringify({ clienteCorreo: "cliente@demo.local", fecha: "2026-07-10", hora: "09:00", reservaId: "res-1" }) } }]
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await notificarCancelacionHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(sendReservationEmailMock).toHaveBeenCalledWith(expect.objectContaining({
       to: "cliente@demo.local",
@@ -882,22 +884,22 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("mapea error de notificacion de cancelacion", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     sendReservationEmailMock.mockRejectedValue(new Error("fallo correo"));
     const event = {
       Records: [{ Sns: { Message: JSON.stringify({ reserva: { clienteCorreo: "cliente@demo.local" } }) } }]
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await notificarCancelacionHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(500);
     expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });
 
   it("post confirm agrega cliente a Cognito y registra perfil", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = {
       userPoolId: "pool-1",
       userName: "cliente@demo.local",
@@ -910,10 +912,10 @@ describe("handlers operativos del diagrama", () => {
       }
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = await postConfirmClienteHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result).toBe(event);
     expect(cognitoSendMock).toHaveBeenCalledTimes(1);
     expect(dynamodbMocks.putItem).toHaveBeenCalledWith(expect.objectContaining({
@@ -924,30 +926,30 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("post confirm ignora perfil cuando faltan atributos minimos", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = { request: { userAttributes: {} } };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = await postConfirmClienteHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result).toBe(event);
     expect(cognitoSendMock).not.toHaveBeenCalled();
     expect(dynamodbMocks.putItem).not.toHaveBeenCalled();
   });
 
   it("post confirm ignora evento sin request", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = await postConfirmClienteHandler({});
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result).toEqual({});
     expect(cognitoSendMock).not.toHaveBeenCalled();
     expect(dynamodbMocks.putItem).not.toHaveBeenCalled();
   });
 
   it("post confirm usa userName y nombre por defecto cuando faltan sub y name", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = {
       userName: "cliente@demo.local",
       request: {
@@ -957,10 +959,10 @@ describe("handlers operativos del diagrama", () => {
       }
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = await postConfirmClienteHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result).toBe(event);
     expect(dynamodbMocks.putItem).toHaveBeenCalledWith(expect.objectContaining({
       pk: "CLIENTE#cliente@demo.local",
@@ -969,7 +971,7 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("consumer SQS procesa mensaje de reserva cancelada", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const payload = {
       eventType: "RESERVA_CANCELADA",
       reserva: {
@@ -983,10 +985,10 @@ describe("handlers operativos del diagrama", () => {
       Records: [{ body: JSON.stringify({ Type: "Notification", Message: JSON.stringify(payload) }) }]
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await sqsNotificationConsumerHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(sendReservationEmailMock).toHaveBeenCalledWith(expect.objectContaining({
       subject: "Reserva cancelada - BarberCloud"
@@ -994,7 +996,7 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("consumer SQS procesa mensaje directo de reserva confirmada", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = {
       Records: [{
         body: JSON.stringify({
@@ -1006,10 +1008,10 @@ describe("handlers operativos del diagrama", () => {
       }]
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await sqsNotificationConsumerHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(sendReservationEmailMock).toHaveBeenCalledWith(expect.objectContaining({
       subject: "Reserva confirmada - BarberCloud"
@@ -1017,45 +1019,45 @@ describe("handlers operativos del diagrama", () => {
   });
 
   it("consumer SQS acepta eventos sin registros", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await sqsNotificationConsumerHandler({});
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(sendReservationEmailMock).not.toHaveBeenCalled();
   });
 
   it("consumer SQS acepta registro sin body", async () => {
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await sqsNotificationConsumerHandler({ Records: [{}] });
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(sendReservationEmailMock).not.toHaveBeenCalled();
   });
 
   it("consumer SQS ignora mensajes sin correo de cliente", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = {
       Records: [{ body: JSON.stringify({ reserva: { reservaId: "res-sin-correo" } }) }]
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await sqsNotificationConsumerHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(200);
     expect(sendReservationEmailMock).not.toHaveBeenCalled();
   });
 
   it("consumer SQS mapea errores de parseo", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = { Records: [{ body: "no-json" }] };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await sqsNotificationConsumerHandler(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(500);
     expect(parseBody(response)).toEqual({ error: "Error interno del servidor" });
   });

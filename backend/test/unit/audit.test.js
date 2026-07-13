@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 
-// Define mock first, then use in vi.mock (hoisting handles this)
+// Pruebas de auditoria: verifican que cada accion quede persistida.
+// Preparar el mock antes de vi.mock porque Vitest eleva esas llamadas.
 const { putItemMock } = vi.hoisted(() => {
   const mock = vi.fn().mockResolvedValue(undefined);
   return { putItemMock: mock, putItem: mock };

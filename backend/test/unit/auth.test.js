@@ -8,28 +8,30 @@ import {
 } from "../../src/lib/auth.js";
 import { lambdaEvent } from "../helpers/events.js";
 
+// Pruebas de autenticacion y roles: verifican claims,
+// grupos Cognito y rechazo cuando el rol no esta autorizado.
 describe("auth helpers", () => {
   it("lee grupos Cognito desde un string", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = lambdaEvent();
     event.requestContext.authorizer.jwt.claims["cognito:groups"] = "[ADMIN, SECRETARIA]";
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const groups = getGroups(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(groups).toEqual(["ADMIN", "SECRETARIA"]);
     expect(hasRole(event, ["SECRETARIA"])).toBe(true);
   });
 
   it("lanza 403 cuando el rol no esta autorizado", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = lambdaEvent({ role: "CLIENTE" });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const action = () => requireRole(event, ["ADMIN"]);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(action).toThrow("Acceso no autorizado");
     try {
       action();
@@ -39,14 +41,14 @@ describe("auth helpers", () => {
   });
 
   it("devuelve rol anonimo y usuario por defecto si no hay claims", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = {};
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const role = getPrimaryRole(event);
     const user = getUser(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(role).toBe("ANONIMO");
     expect(user).toEqual({
       sub: undefined,
@@ -56,7 +58,7 @@ describe("auth helpers", () => {
   });
 
   it("parsea grupos cuando es un array", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = {
       requestContext: {
         authorizer: {
@@ -69,15 +71,15 @@ describe("auth helpers", () => {
       }
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const groups = getGroups(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(groups).toEqual(["ADMIN", "BARBERO"]);
   });
 
   it("devuelve rol desde claim role cuando no hay cognito:groups", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = {
       requestContext: {
         authorizer: {
@@ -90,17 +92,17 @@ describe("auth helpers", () => {
       }
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const groups = getGroups(event);
     const role = getPrimaryRole(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(groups).toEqual(["SECRETARIA"]);
     expect(role).toBe("SECRETARIA");
   });
 
   it("da acceso cuando rol esta en la lista permitida", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = {
       requestContext: {
         authorizer: {
@@ -113,13 +115,13 @@ describe("auth helpers", () => {
       }
     };
 
-    // Act & Assert
+    // Ejecutar y verificar: disparar la accion y confirmar el resultado
     expect(hasRole(event, ["ADMIN", "SUPER"])).toBe(true);
     expect(hasRole(event, ["BARBERO"])).toBe(false);
   });
 
   it("getUser usa email como nombre cuando no hay name", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = {
       requestContext: {
         authorizer: {
@@ -133,10 +135,10 @@ describe("auth helpers", () => {
       }
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const user = getUser(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(user).toEqual({
       sub: "user-1",
       email: "user@demo.local",
@@ -145,13 +147,13 @@ describe("auth helpers", () => {
   });
 
   it("getUser sin claims devuelve usuario anonimo", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const event = { requestContext: {} };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const user = getUser(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(user.name).toBe("Usuario");
   });
 });

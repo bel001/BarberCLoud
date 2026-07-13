@@ -8,68 +8,70 @@ import {
   createFinanceService
 } from "../../src/services/financeService.js";
 
+// Pruebas financieras: validan conteos, ingresos estimados
+// y exclusion de reservas canceladas o copias de agenda.
 describe("buildFinancialReport", () => {
   it("calcula total de reservas activas", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const reservas = [
       { pk: "CLIENTE#1", estado: "CONFIRMADA", origen: "ONLINE", precio: 30 },
       { pk: "CLIENTE#2", estado: "CONFIRMADA", origen: "PRESENCIAL", precio: 20 },
       { pk: "CLIENTE#3", estado: "CANCELADA", origen: "ONLINE", precio: 45 }
     ];
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const report = buildFinancialReport(reservas);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(report.totalReservas).toBe(2);
   });
 
   it("separa reservas online y presenciales", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const reservas = [
       { pk: "CLIENTE#1", estado: "CONFIRMADA", origen: "ONLINE", precio: 30 },
       { pk: "CLIENTE#2", estado: "CONFIRMADA", origen: "PRESENCIAL", precio: 20 },
       { pk: "CLIENTE#3", estado: "CONFIRMADA", origen: "PRESENCIAL", precio: 45 }
     ];
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const report = buildFinancialReport(reservas);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(report.online).toBe(1);
     expect(report.presenciales).toBe(2);
   });
 
   it("suma ingresos estimados ignorando canceladas y copias de agenda", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const reservas = [
       { pk: "CLIENTE#1", estado: "CONFIRMADA", origen: "ONLINE", precio: 30 },
       { pk: "CLIENTE#2", estado: "CANCELADA", origen: "PRESENCIAL", precio: 20 },
       { pk: "BARBERO#1", estado: "CONFIRMADA", origen: "ONLINE", precio: 30 }
     ];
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const report = buildFinancialReport(reservas);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(report.ingresosEstimados).toBe(30);
   });
 
   it("suma cero cuando una reserva activa no tiene precio", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const reservas = [
       { pk: "CLIENTE#1", estado: "CONFIRMADA", origen: "ONLINE" }
     ];
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const report = buildFinancialReport(reservas);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(report.ingresosEstimados).toBe(0);
   });
 
   it("obtiene reporte desde repositorio inyectado", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const repository = {
       scanReservas: vi.fn().mockResolvedValue([
         { pk: "CLIENTE#1", estado: "CONFIRMADA", origen: "ONLINE", precio: 30 }
@@ -77,10 +79,10 @@ describe("buildFinancialReport", () => {
     };
     const service = createFinanceService({ repository });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const report = await service.getReport();
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(repository.scanReservas).toHaveBeenCalledTimes(1);
     expect(report).toEqual({
       totalReservas: 1,

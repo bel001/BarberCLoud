@@ -7,15 +7,17 @@ import {
 } from "../../src/services/availabilityService.js";
 import { createRepositoryMock, fixedClock } from "../helpers/mocks.js";
 
+// Pruebas de disponibilidad: validan horarios libres, reservas ocupadas
+// y mapeo de servicios/barberos sin depender de DynamoDB real.
 const barbers = [{ id: "barbero_carlos", nombre: "Carlos Barbero" }];
 const schedule = ["09:00", "10:00", "11:00"];
 
 describe("calculateAvailability", () => {
   it("devuelve horarios libres cuando no hay reservas", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const agendaByBarber = { barbero_carlos: [] };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = calculateAvailability({
       barbers,
       agendaByBarber,
@@ -23,19 +25,19 @@ describe("calculateAvailability", () => {
       schedule
     });
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result.barbero_carlos).toEqual(["09:00", "10:00", "11:00"]);
   });
 
   it("excluye horarios ocupados", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const agendaByBarber = {
       barbero_carlos: [
         { tipo: "RESERVA", fecha: "2026-07-10", hora: "10:00", estado: "CONFIRMADA" }
       ]
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = calculateAvailability({
       barbers,
       agendaByBarber,
@@ -43,19 +45,19 @@ describe("calculateAvailability", () => {
       schedule
     });
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result.barbero_carlos).toEqual(["09:00", "11:00"]);
   });
 
   it("no bloquea horarios de reservas canceladas", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const agendaByBarber = {
       barbero_carlos: [
         { tipo: "RESERVA", fecha: "2026-07-10", hora: "10:00", estado: "CANCELADA" }
       ]
     };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = calculateAvailability({
       barbers,
       agendaByBarber,
@@ -63,15 +65,15 @@ describe("calculateAvailability", () => {
       schedule
     });
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result.barbero_carlos).toEqual(["09:00", "10:00", "11:00"]);
   });
 
   it("usa agenda vacia cuando no existe entrada del barbero", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const agendaByBarber = {};
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = calculateAvailability({
       barbers,
       agendaByBarber,
@@ -79,20 +81,20 @@ describe("calculateAvailability", () => {
       schedule
     });
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result.barbero_carlos).toEqual(["09:00", "10:00", "11:00"]);
   });
 });
 
 describe("availability mapping", () => {
   it("usa servicios por defecto si no hay datos en repositorio", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const items = [];
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const services = mapAvailableServices(items);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(services).toEqual([
       { id: "corte-clasico", nombre: "Corte clasico", precio: 30, duracionMinutos: 30 },
       { id: "barba", nombre: "Perfilado de barba", precio: 20, duracionMinutos: 20 },
@@ -101,18 +103,18 @@ describe("availability mapping", () => {
   });
 
   it("filtra servicios inactivos y mapea barberos", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const servicios = [
       { servicioId: "corte", nombre: "Corte", precio: 30, estado: "ACTIVO", duracionMinutos: 25 },
       { servicioId: "tinte", nombre: "Tinte", precio: 50, estado: "INACTIVO" }
     ];
     const barberos = [{ barberoId: "barbero_1", nombre: "Carlos" }];
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const mappedServices = mapAvailableServices(servicios);
     const mappedBarbers = mapAvailableBarbers(barberos);
 
-    // Assert
+    // Verificar: excluir servicios inactivos y conservar su duracion
     expect(mappedServices).toEqual([{ id: "corte", nombre: "Corte", precio: 30, duracionMinutos: 25 }]);
     expect(mappedBarbers).toEqual([{ id: "barbero_1", nombre: "Carlos" }]);
   });
@@ -120,7 +122,7 @@ describe("availability mapping", () => {
 
 describe("createAvailabilityService", () => {
   it("consulta repositorio y devuelve disponibilidad completa", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const repository = createRepositoryMock({
       scanByTipo: vi.fn()
         .mockResolvedValueOnce([{ servicioId: "corte", nombre: "Corte", precio: 30, estado: "ACTIVO" }])
@@ -131,10 +133,10 @@ describe("createAvailabilityService", () => {
     });
     const service = createAvailabilityService({ repository, clock: fixedClock("2026-07-04T10:00:00.000Z") });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = await service.getAvailability({ queryStringParameters: { fecha: "2026-07-10" } });
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(repository.scanByTipo).toHaveBeenNthCalledWith(1, "SERVICIO");
     expect(repository.scanByTipo).toHaveBeenNthCalledWith(2, "BARBERO");
     expect(repository.queryByPk).toHaveBeenCalledWith("BARBERO#barbero_1");
@@ -147,14 +149,14 @@ describe("createAvailabilityService", () => {
   });
 
   it("usa la fecha actual cuando no llega query string", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const repository = createRepositoryMock();
     const service = createAvailabilityService({ repository, clock: fixedClock("2026-07-04T10:00:00.000Z") });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = await service.getAvailability({});
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result.fecha).toBe("2026-07-04");
     expect(result.barberos).toEqual([{ id: "barbero_carlos", nombre: "Carlos Barbero" }]);
   });

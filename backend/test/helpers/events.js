@@ -1,3 +1,5 @@
+// Helpers para construir eventos Lambda simulados y leer respuestas JSON.
+// Evitan repetir la estructura de API Gateway en cada prueba.
 export function lambdaEvent({
   method = "GET",
   rawPath = "/",

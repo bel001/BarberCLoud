@@ -3,20 +3,22 @@ import { calculateCashTotal, createPosService, validateSaleInput } from "../../s
 import { lambdaEvent } from "../helpers/events.js";
 import { createRepositoryMock, fixedClock, fixedId } from "../helpers/mocks.js";
 
+// Pruebas de POS: validan calculo de caja, registro de ventas,
+// validaciones de entrada y auditoria de operaciones.
 describe("posService", () => {
   it("calcula total de caja con valores numericos y texto", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const ventas = [{ total: 20 }, { total: "30" }, {}];
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const total = calculateCashTotal(ventas);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(total).toBe(50);
   });
 
   it("lista ventas y totaliza caja", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const repository = createRepositoryMock({
       scanByTipo: vi.fn().mockResolvedValue([{ total: 15 }, { total: "25" }])
     });
@@ -27,10 +29,10 @@ describe("posService", () => {
       clock: fixedClock()
     });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = await service.listSales();
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(repository.scanByTipo).toHaveBeenCalledWith("VENTA");
     expect(result).toEqual({
       ventas: [{ total: 15 }, { total: "25" }],
@@ -63,7 +65,7 @@ describe("posService", () => {
   });
 
   it("registra venta con responsable, auditoria y fecha estable", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const repository = createRepositoryMock();
     const auditLog = vi.fn().mockResolvedValue(undefined);
     const service = createPosService({
@@ -83,10 +85,10 @@ describe("posService", () => {
       }
     });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = await service.registerSale(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result).toEqual({
       message: "Venta registrada",
       ventaId: "venta_venta-id",
@@ -111,29 +113,29 @@ describe("posService", () => {
   });
 
   it("valida venta y usa efectivo por defecto", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const body = { concepto: "Corte", total: "30" };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = validateSaleInput(body);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result).toEqual({ concepto: "Corte", total: 30, metodoPago: "EFECTIVO" });
   });
 
   it("rechaza venta sin concepto o total", () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const body = { concepto: "Corte" };
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const action = () => validateSaleInput(body);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     expect(action).toThrow("concepto y total son obligatorios");
   });
 
   it("rechaza venta cuando el evento no trae body", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const service = createPosService({
       repository: createRepositoryMock(),
       auditLog: vi.fn(),
@@ -142,15 +144,15 @@ describe("posService", () => {
     });
     const event = lambdaEvent({ method: "POST", role: "SECRETARIA" });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const action = () => service.registerSale(event);
 
-    // Assert
+    // Verificar: confirmar la respuesta y los efectos esperados
     await expect(action).rejects.toThrow("concepto y total son obligatorios");
   });
 
   it("registra venta usando reloj real cuando no se inyecta clock", async () => {
-    // Arrange
+    // Preparar: definir datos, mocks y contexto del caso
     const repository = createRepositoryMock();
     const service = createPosService({
       repository,
@@ -164,10 +166,10 @@ describe("posService", () => {
       body: { concepto: "Corte", total: 30 }
     });
 
-    // Act
+    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = await service.registerSale(event);
 
-    // Assert
+    // Verificar: incluir impuesto y total calculados en la respuesta
     expect(result).toEqual({ message: "Venta registrada", ventaId: "venta_venta-real", impuesto: 5.4, totalConImpuesto: 35.4 });
     expect(repository.putItem.mock.calls[0][0].creadoEn).toEqual(expect.any(String));
   });
