@@ -134,7 +134,7 @@ export function createReservationService({
       await publishReservationEvent("RESERVA_CREADA", reservaCliente);
 
       try {
-        await otorgarPuntosLealtad(repository, { clienteId: user.sub, nombre: user.name, email: user.email });
+        await otorgarPuntosLealtad(repository, { clienteId, nombre: clienteNombre, email: clienteCorreo });
       } catch {
         // Los puntos de lealtad no deben bloquear la confirmacion de la reserva
       }
@@ -147,6 +147,7 @@ export function createReservationService({
 
     async rescheduleReservation(event) {
       const user = getUser(event);
+      const { clienteId } = getClientIdentity(user);
       const reservaId = event.pathParameters?.id;
       const body = JSON.parse(event.body || "{}");
       const { fecha: nuevaFecha, hora: nuevaHora } = body;
@@ -162,7 +163,7 @@ export function createReservationService({
       const ahora = clock();
       assertReservaNoEsPasada(nuevaFecha, nuevaHora, ahora);
 
-      const reservas = await repository.queryByPk(`CLIENTE#${user.sub}`);
+      const reservas = await repository.queryByPk(`CLIENTE#${clienteId}`);
       const reserva = reservas.find(item =>
         item.tipo === "RESERVA" &&
         item.reservaId === reservaId
@@ -249,13 +250,14 @@ export function createReservationService({
 
     async cancelReservation(event) {
       const user = getUser(event);
+      const { clienteId } = getClientIdentity(user);
       const reservaId = event.pathParameters?.id;
 
       if (!reservaId) {
         throw new ServiceError("reservaId es obligatorio");
       }
 
-      const reservas = await repository.queryByPk(`CLIENTE#${user.sub}`);
+      const reservas = await repository.queryByPk(`CLIENTE#${clienteId}`);
       const reserva = reservas.find(item =>
         item.tipo === "RESERVA" &&
         item.reservaId === reservaId
