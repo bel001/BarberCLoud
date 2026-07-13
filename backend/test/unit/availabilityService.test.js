@@ -1,139 +1,37 @@
-import { describe, expect, it, vi } from "vitest";
-import {
-  calculateAvailability,
-  createAvailabilityService,
-  mapAvailableBarbers,
-  mapAvailableServices
-} from "../../src/services/availabilityService.js";
-import { createRepositoryMock, fixedClock } from "../helpers/mocks.js";
+import { describe, expect, it } from 'vitest';
+import { calculateAvailability, overlaps } from '../../src/services/availability-service.js';
 
-// Pruebas de disponibilidad: validan horarios libres, reservas ocupadas
-// y mapeo de servicios/barberos sin depender de DynamoDB real.
-const barbers = [{ id: "barbero_carlos", nombre: "Carlos Barbero" }];
-const schedule = ["09:00", "10:00", "11:00"];
-
-describe("calculateAvailability", () => {
-  it("devuelve horarios libres cuando no hay reservas", () => {
-    const agendaByBarber = { barbero_carlos: [] };
-
-    const result = calculateAvailability({
-      barbers,
-      agendaByBarber,
-      fecha: "2026-07-10",
-      schedule
-    });
-
-    expect(result.barbero_carlos).toEqual(["09:00", "10:00", "11:00"]);
+describe('availability service', () => {
+  it('detecta cruces y respeta bordes consecutivos', () => {
+    expect(overlaps('09:00', 30, '09:15', 30)).toBe(true);
+    expect(overlaps('09:00', 30, '09:30', 30)).toBe(false);
   });
 
-  it("excluye horarios ocupados", () => {
-    const agendaByBarber = {
-      barbero_carlos: [
-        { tipo: "RESERVA", fecha: "2026-07-10", hora: "10:00", estado: "CONFIRMADA" }
+  it('genera horarios dentro de la jornada', () => {
+    const result = calculateAvailability({
+      openTime: '09:00', closeTime: '11:00', slotMinutes: 30,
+      serviceDuration: 30, appointments: []
+    });
+    expect(result).toEqual(['09:00', '09:30', '10:00', '10:30']);
+  });
+
+  it('elimina horarios ocupados e ignora citas canceladas', () => {
+    const result = calculateAvailability({
+      openTime: '09:00', closeTime: '11:00', slotMinutes: 30,
+      serviceDuration: 30,
+      appointments: [
+        { time: '09:30', duration: 30, status: 'CONFIRMADA' },
+        { time: '10:00', duration: 30, status: 'CANCELADA' }
       ]
-    };
+    });
+    expect(result).toEqual(['09:00', '10:00', '10:30']);
+  });
 
+  it('no ofrece un bloque que excede la hora de cierre', () => {
     const result = calculateAvailability({
-      barbers,
-      agendaByBarber,
-      fecha: "2026-07-10",
-      schedule
+      openTime: '18:00', closeTime: '19:00', slotMinutes: 30,
+      serviceDuration: 45, appointments: []
     });
-
-    expect(result.barbero_carlos).toEqual(["09:00", "11:00"]);
-  });
-
-  it("no bloquea horarios de reservas canceladas", () => {
-    const agendaByBarber = {
-      barbero_carlos: [
-        { tipo: "RESERVA", fecha: "2026-07-10", hora: "10:00", estado: "CANCELADA" }
-      ]
-    };
-
-    const result = calculateAvailability({
-      barbers,
-      agendaByBarber,
-      fecha: "2026-07-10",
-      schedule
-    });
-
-    expect(result.barbero_carlos).toEqual(["09:00", "10:00", "11:00"]);
-  });
-
-  it("usa agenda vacia cuando no existe entrada del barbero", () => {
-    const agendaByBarber = {};
-
-    const result = calculateAvailability({
-      barbers,
-      agendaByBarber,
-      fecha: "2026-07-10",
-      schedule
-    });
-
-    expect(result.barbero_carlos).toEqual(["09:00", "10:00", "11:00"]);
-  });
-});
-
-describe("availability mapping", () => {
-  it("usa servicios por defecto si no hay datos en repositorio", () => {
-    const items = [];
-
-    const services = mapAvailableServices(items);
-
-    expect(services).toEqual([
-      { id: "corte-clasico", nombre: "Corte clasico", precio: 30, duracionMinutos: 30 },
-      { id: "barba", nombre: "Perfilado de barba", precio: 20, duracionMinutos: 20 },
-      { id: "corte-barba", nombre: "Corte y barba", precio: 45, duracionMinutos: 45 }
-    ]);
-  });
-
-  it("filtra servicios inactivos y mapea barberos", () => {
-    const servicios = [
-      { servicioId: "corte", nombre: "Corte", precio: 30, estado: "ACTIVO", duracionMinutos: 25 },
-      { servicioId: "tinte", nombre: "Tinte", precio: 50, estado: "INACTIVO" }
-    ];
-    const barberos = [{ barberoId: "barbero_1", nombre: "Carlos" }];
-
-    const mappedServices = mapAvailableServices(servicios);
-    const mappedBarbers = mapAvailableBarbers(barberos);
-
-    expect(mappedServices).toEqual([{ id: "corte", nombre: "Corte", precio: 30, duracionMinutos: 25 }]);
-    expect(mappedBarbers).toEqual([{ id: "barbero_1", nombre: "Carlos" }]);
-  });
-});
-
-describe("createAvailabilityService", () => {
-  it("consulta repositorio y devuelve disponibilidad completa", async () => {
-    const repository = createRepositoryMock({
-      scanByTipo: vi.fn()
-        .mockResolvedValueOnce([{ servicioId: "corte", nombre: "Corte", precio: 30, estado: "ACTIVO" }])
-        .mockResolvedValueOnce([{ barberoId: "barbero_1", nombre: "Carlos" }]),
-      queryByPk: vi.fn().mockResolvedValue([
-        { tipo: "RESERVA", fecha: "2026-07-10", hora: "09:00", estado: "CONFIRMADA" }
-      ])
-    });
-    const service = createAvailabilityService({ repository, clock: fixedClock("2026-07-04T10:00:00.000Z") });
-
-    const result = await service.getAvailability({ queryStringParameters: { fecha: "2026-07-10" } });
-
-    expect(repository.scanByTipo).toHaveBeenNthCalledWith(1, "SERVICIO");
-    expect(repository.scanByTipo).toHaveBeenNthCalledWith(2, "BARBERO");
-    expect(repository.queryByPk).toHaveBeenCalledWith("BARBERO#barbero_1");
-    expect(result).toMatchObject({
-      fecha: "2026-07-10",
-      servicios: [{ id: "corte", nombre: "Corte", precio: 30 }],
-      barberos: [{ id: "barbero_1", nombre: "Carlos" }]
-    });
-    expect(result.disponibilidad.barbero_1).not.toContain("09:00");
-  });
-
-  it("usa la fecha actual cuando no llega query string", async () => {
-    const repository = createRepositoryMock();
-    const service = createAvailabilityService({ repository, clock: fixedClock("2026-07-04T10:00:00.000Z") });
-
-    const result = await service.getAvailability({});
-
-    expect(result.fecha).toBe("2026-07-04");
-    expect(result.barberos).toEqual([{ id: "barbero_carlos", nombre: "Carlos Barbero" }]);
+    expect(result).toEqual(['18:00']);
   });
 });

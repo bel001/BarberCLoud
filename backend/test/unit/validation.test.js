@@ -1,35 +1,32 @@
-import { describe, expect, it } from "vitest";
-import { validateOnlineReservationInput } from "../../src/services/reservationService.js";
-import { validateSaleInput } from "../../src/services/posService.js";
+import { describe, expect, it } from 'vitest';
+import { assertDate, assertEmail, assertTime, normalizeText, requireFields } from '../../src/lib/validation.js';
 
-// Pruebas de validacion: confirman que las reglas rechacen payloads
-// incompletos antes de ejecutar logica de negocio.
-describe("validaciones de servicios", () => {
-  it("reserva falla si faltan campos obligatorios", () => {
-    const body = { servicioId: "corte-clasico", fecha: "2026-07-10" };
-
-    const action = () => validateOnlineReservationInput(body);
-
-    expect(action).toThrow("servicioId, barberoId, fecha y hora son obligatorios");
+describe('validation helpers', () => {
+  it('acepta payload completo', () => {
+    expect(() => requireFields({ name: 'Corte', price: 30 }, ['name', 'price'])).not.toThrow();
   });
 
-  it("POS falla si falta concepto o total", () => {
-    const body = { concepto: "Corte clasico" };
-
-    const action = () => validateSaleInput(body);
-
-    expect(action).toThrow("concepto y total son obligatorios");
+  it('reporta todos los campos faltantes', () => {
+    expect(() => requireFields({ name: '' }, ['name', 'price'])).toThrow('name, price');
   });
 
-  it("POS normaliza total numerico y metodo de pago por defecto", () => {
-    const body = { concepto: "Corte clasico", total: "30" };
+  it.each(['cliente@correo.com', 'a+b@dominio.pe'])('acepta correo válido %s', (email) => {
+    expect(() => assertEmail(email)).not.toThrow();
+  });
 
-    const sale = validateSaleInput(body);
+  it.each(['correo', '@dominio.com', 'a@'])('rechaza correo inválido %s', (email) => {
+    expect(() => assertEmail(email)).toThrow('Correo electrónico inválido');
+  });
 
-    expect(sale).toEqual({
-      concepto: "Corte clasico",
-      total: 30,
-      metodoPago: "EFECTIVO"
-    });
+  it('valida fecha y hora', () => {
+    expect(() => assertDate('2026-07-15')).not.toThrow();
+    expect(() => assertTime('19:30')).not.toThrow();
+    expect(() => assertDate('15/07/2026')).toThrow();
+    expect(() => assertTime('25:00')).toThrow();
+  });
+
+  it('normaliza texto y valores nulos', () => {
+    expect(normalizeText('  BarberCloud  ')).toBe('BarberCloud');
+    expect(normalizeText(null)).toBe('');
   });
 });

@@ -13,9 +13,7 @@ export default defineConfig({
         "src/lib/response.js",
         "src/handlers/**/*.js"
       ],
-      exclude: [
-        "src/local-server.js"
-      ],
+      exclude: ["src/local-server.js"],
       thresholds: {
         statements: 80,
         branches: 70,

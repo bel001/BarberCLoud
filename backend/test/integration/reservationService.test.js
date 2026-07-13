@@ -1,621 +1,136 @@
-import { describe, expect, it, vi } from "vitest";
-import { createNuevaReservaHandler } from "../../src/handlers/nuevaReserva.js";
-import { createReservationService } from "../../src/services/reservationService.js";
-import { lambdaEvent, parseBody } from "../helpers/events.js";
-import { createRepositoryMock, fixedClock, fixedId } from "../helpers/mocks.js";
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Pruebas de reglas de reserva: reserva online, cita presencial,
-// cancelaciones, conflictos de horario y eventos publicados.
-function createService(overrides = {}) {
-  const repository = overrides.repository || createRepositoryMock({
-    getItem: vi.fn().mockResolvedValue({ nombre: "Corte clasico", precio: 30 })
-  });
-  const auditLog = overrides.auditLog || vi.fn().mockResolvedValue(undefined);
-  const publishReservationEvent = overrides.publishReservationEvent || vi.fn().mockResolvedValue(undefined);
-  const service = createReservationService({
-    repository,
-    auditLog,
-    publishReservationEvent,
-    idGenerator: fixedId(),
-    clock: fixedClock(),
-    tableName: "barbercloud-test"
-  });
+const mocks = vi.hoisted(() => ({
+  getItem: vi.fn(), putItem: vi.fn(async (item) => item), scanByType: vi.fn(), updateItem: vi.fn(),
+  audit: vi.fn(), getUser: vi.fn(), listUsers: vi.fn(), getService: vi.fn(), getBusinessConfig: vi.fn()
+}));
 
-  return { service, repository, auditLog, publishReservationEvent };
+vi.mock('../../src/lib/repository.js', () => ({
+  getItem: mocks.getItem,
+  putItem: mocks.putItem,
+  scanByType: mocks.scanByType,
+  updateItem: mocks.updateItem
+}));
+vi.mock('../../src/lib/audit.js', () => ({ audit: mocks.audit }));
+vi.mock('../../src/services/user-service.js', () => ({ getUser: mocks.getUser, listUsers: mocks.listUsers }));
+vi.mock('../../src/services/business-service.js', () => ({
+  getService: mocks.getService,
+  getBusinessConfig: mocks.getBusinessConfig
+}));
+vi.mock('node:crypto', () => ({ randomUUID: () => 'appointment-id' }));
+
+import {
+  cancelAppointment,
+  createAppointment,
+  getAvailability,
+  listAppointments,
+  rescheduleAppointment,
+  updateAppointmentStatus
+} from '../../src/services/appointment-service.js';
+
+const client = { id: 'client-1', name: 'Cliente Uno', phone: '999111222', role: 'CLIENTE', active: true };
+const barber = { id: 'barber-1', name: 'Barbero Uno', role: 'BARBERO', active: true };
+const service = { id: 'service-1', name: 'Corte clásico', duration: 30, price: 30, active: true };
+const actor = { sub: 'client-1', role: 'CLIENTE' };
+
+function configureBase() {
+  mocks.getBusinessConfig.mockResolvedValue({ openTime: '09:00', closeTime: '11:00', slotMinutes: 30 });
+  mocks.getService.mockResolvedValue(service);
+  mocks.getUser.mockImplementation(async (id) => {
+    if (id === client.id) return client;
+    if (id === barber.id) return barber;
+    throw new Error('not found');
+  });
+  mocks.scanByType.mockResolvedValue([]);
+  mocks.updateItem.mockImplementation(async (_pk, updates) => ({
+    id: 'appointment-id', clientId: client.id, barberId: barber.id, serviceId: service.id,
+    date: '2026-07-15', time: '10:00', duration: 30, price: 30, status: 'PENDIENTE', ...updates
+  }));
 }
 
-function onlineReservationEvent(claims = {}) {
-  return {
-    body: JSON.stringify({
-      servicioId: "corte-clasico",
-      barberoId: "barbero_carlos",
-      fecha: "2026-07-10",
-      hora: "10:00"
-    }),
-    requestContext: {
-      authorizer: {
-        jwt: {
-          claims
-        }
-      }
-    }
-  };
-}
-
-describe("reservationService integration con mocks", () => {
-  it("crea reserva online para cliente y agenda de barbero", async () => {
-    const { service, repository, publishReservationEvent } = createService();
-    const event = lambdaEvent({
-      method: "POST",
-      body: {
-        servicioId: "corte-clasico",
-        barberoId: "barbero_carlos",
-        fecha: "2026-07-10",
-        hora: "10:00"
-      }
-    });
-
-    const result = await service.createOnlineReservation(event);
-
-    expect(result).toEqual({
-      message: "Reserva creada correctamente",
-      reservaId: "res_test-id"
-    });
-    expect(repository.transactWrite).toHaveBeenCalledTimes(1);
-    const writes = repository.transactWrite.mock.calls[0][0];
-    expect(writes).toHaveLength(2);
-    expect(writes[0].Put.Item.pk).toBe("CLIENTE#cliente-demo");
-    expect(writes[0].Put.Item.clienteNombre).toBe("Cliente Demo");
-    expect(writes[0].Put.Item.clienteCorreo).toBe("cliente@demo.local");
-    expect(writes[1].Put.Item.pk).toBe("BARBERO#barbero_carlos");
-    expect(publishReservationEvent).toHaveBeenCalledWith("RESERVA_CREADA", expect.objectContaining({
-      reservaId: "res_test-id",
-      origen: "ONLINE"
-    }));
+describe('reservation service integration with repositories mocked', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    configureBase();
   });
 
-  it("rechaza reserva online si el token no trae sub", async () => {
-    const { service, repository } = createService();
-    const event = onlineReservationEvent({ email: "cliente@demo.local" });
-
-    await expect(service.createOnlineReservation(event)).rejects.toMatchObject({
-      message: "Identidad de cliente no valida",
-      statusCode: 401
-    });
-    expect(repository.transactWrite).not.toHaveBeenCalled();
+  it('consulta disponibilidad usando configuración, servicio y reservas', async () => {
+    mocks.scanByType.mockResolvedValue([{ id: 'other', date: '2026-07-15', barberId: barber.id, time: '09:30', duration: 30, status: 'CONFIRMADA' }]);
+    const result = await getAvailability({ date: '2026-07-15', serviceId: service.id, barberId: barber.id });
+    expect(result).toEqual(['09:00', '10:00', '10:30']);
   });
 
-  it("rechaza cancelacion si el token no trae sub", async () => {
-    const repository = createRepositoryMock();
-    const { service } = createService({ repository });
-    const event = onlineReservationEvent({ email: "cliente@demo.local" });
-    event.pathParameters = { id: "res_email" };
-
-    await expect(service.cancelReservation(event)).rejects.toThrow("Identidad de cliente no valida");
-    expect(repository.queryByPk).not.toHaveBeenCalled();
+  it('crea una reserva online y la enriquece', async () => {
+    const result = await createAppointment({
+      clientId: client.id, barberId: barber.id, serviceId: service.id,
+      date: '2026-07-15', time: '09:00', notes: 'Sin máquina'
+    }, actor, 'ONLINE');
+    expect(result).toMatchObject({
+      id: 'appointment-id', clientName: 'Cliente Uno', barberName: 'Barbero Uno',
+      serviceName: 'Corte clásico', source: 'ONLINE', status: 'PENDIENTE'
+    });
+    expect(mocks.putItem).toHaveBeenCalledOnce();
+    expect(mocks.audit).toHaveBeenCalledWith(expect.objectContaining({ action: 'CREATE_APPOINTMENT' }));
   });
 
-  it("rechaza reprogramacion si el token no trae sub", async () => {
-    const repository = createRepositoryMock();
-    const { service } = createService({ repository });
-    const event = onlineReservationEvent({ email: "cliente@demo.local" });
-    event.pathParameters = { id: "res_email" };
-    event.body = JSON.stringify({ fecha: "2026-07-11", hora: "15:00" });
-
-    await expect(service.rescheduleReservation(event)).rejects.toThrow("Identidad de cliente no valida");
-    expect(repository.queryByPk).not.toHaveBeenCalled();
+  it('impide al cliente reservar para otra cuenta', async () => {
+    await expect(createAppointment({
+      clientId: 'other-client', barberId: barber.id, serviceId: service.id,
+      date: '2026-07-15', time: '09:00'
+    }, actor)).rejects.toMatchObject({ statusCode: 403 });
   });
 
-  it("rechaza reserva online si el token no trae identidad", async () => {
-    const { service, repository } = createService();
-    const event = onlineReservationEvent();
-
-    await expect(service.createOnlineReservation(event)).rejects.toThrow("Identidad de cliente no valida");
-    expect(repository.transactWrite).not.toHaveBeenCalled();
+  it('rechaza horario ocupado', async () => {
+    mocks.scanByType.mockImplementation(async (type) => type === 'APPOINTMENT'
+      ? [{ id: 'occupied', date: '2026-07-15', barberId: barber.id, time: '09:00', duration: 30, status: 'CONFIRMADA' }]
+      : []);
+    expect(await getAvailability({ date: '2026-07-15', serviceId: service.id, barberId: barber.id })).not.toContain('09:00');
+    await expect(createAppointment({
+      clientId: client.id, barberId: barber.id, serviceId: service.id,
+      date: '2026-07-15', time: '09:00'
+    }, actor)).rejects.toMatchObject({ code: 'SLOT_UNAVAILABLE' });
   });
 
-  it("otorga puntos de lealtad al crear una reserva online", async () => {
-    const repository = createRepositoryMock({
-      getItem: vi.fn((pk) => pk.startsWith("SERVICIO#")
-        ? Promise.resolve({ nombre: "Corte clasico", precio: 30 })
-        : Promise.resolve({ nombre: "Cliente Demo", email: "cliente@demo.local", puntos: 20 }))
-    });
-    const { service } = createService({ repository });
-    const event = lambdaEvent({
-      method: "POST",
-      body: {
-        servicioId: "corte-clasico",
-        barberoId: "barbero_carlos",
-        fecha: "2026-07-10",
-        hora: "10:00"
-      }
-    });
-
-    await service.createOnlineReservation(event);
-
-    expect(repository.putItem).toHaveBeenCalledWith(expect.objectContaining({
-      pk: "CLIENTE#cliente-demo",
-      sk: "PROFILE",
-      tipo: "CLIENTE",
-      puntos: 30
-    }));
+  it('filtra citas según el rol del actor', async () => {
+    mocks.scanByType.mockResolvedValue([
+      { id: 'a1', clientId: client.id, barberId: barber.id, serviceId: service.id, date: '2026-07-15', time: '09:00' },
+      { id: 'a2', clientId: 'other', barberId: barber.id, serviceId: service.id, date: '2026-07-15', time: '10:00' }
+    ]);
+    const result = await listAppointments({}, actor);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe('a1');
   });
 
-  it("crea reserva online usando defaults si el servicio no existe", async () => {
-    const repository = createRepositoryMock({
-      getItem: vi.fn().mockResolvedValue(undefined)
+  it('reprograma una cita válida', async () => {
+    mocks.getItem.mockResolvedValue({
+      id: 'appointment-id', clientId: client.id, barberId: barber.id, serviceId: service.id,
+      date: '2026-07-15', time: '09:00', duration: 30, status: 'PENDIENTE'
     });
-    const { service } = createService({ repository });
-    const event = lambdaEvent({
-      method: "POST",
-      body: {
-        servicioId: "servicio-desconocido",
-        barberoId: "barbero_carlos",
-        fecha: "2026-07-10",
-        hora: "10:00"
-      }
-    });
-
-    await service.createOnlineReservation(event);
-
-    const writes = repository.transactWrite.mock.calls[0][0];
-    expect(writes[0].Put.Item).toMatchObject({
-      servicioNombre: "servicio-desconocido",
-      precio: 0
-    });
+    const result = await rescheduleAppointment('appointment-id', { date: '2026-07-15', time: '10:00' }, actor);
+    expect(result.time).toBe('10:00');
+    expect(mocks.updateItem).toHaveBeenCalledWith('APPOINTMENT#appointment-id', expect.objectContaining({ time: '10:00', status: 'PENDIENTE' }));
   });
 
-  it("rechaza reserva online con fecha y hora que ya paso", async () => {
-    const { service } = createService();
-    const event = lambdaEvent({
-      method: "POST",
-      body: {
-        servicioId: "corte-clasico",
-        barberoId: "barbero_carlos",
-        fecha: "2026-07-01",
-        hora: "09:00"
-      }
+  it('cancela una cita propia y rechaza una cita atendida', async () => {
+    mocks.getItem.mockResolvedValue({
+      id: 'appointment-id', clientId: client.id, barberId: barber.id, serviceId: service.id,
+      date: '2026-07-15', time: '09:00', duration: 30, status: 'PENDIENTE'
     });
+    expect((await cancelAppointment('appointment-id', actor)).status).toBe('CANCELADA');
 
-    const action = () => service.createOnlineReservation(event);
-
-    await expect(action).rejects.toThrow("No se puede reservar en una fecha y hora que ya paso");
+    mocks.getItem.mockResolvedValue({
+      id: 'appointment-id', clientId: client.id, barberId: barber.id, serviceId: service.id,
+      status: 'ATENDIDA'
+    });
+    await expect(cancelAppointment('appointment-id', actor)).rejects.toMatchObject({ code: 'INVALID_STATUS' });
   });
 
-  it("rechaza reserva online sin campos obligatorios", async () => {
-    const { service } = createService();
-    const event = lambdaEvent({ method: "POST", body: { servicioId: "corte-clasico" } });
-
-    const action = () => service.createOnlineReservation(event);
-
-    await expect(action).rejects.toThrow("servicioId, barberoId, fecha y hora son obligatorios");
-  });
-
-  it("rechaza reserva online cuando el evento no trae body", async () => {
-    const { service } = createService();
-    const event = lambdaEvent({ method: "POST" });
-
-    const action = () => service.createOnlineReservation(event);
-
-    await expect(action).rejects.toThrow("servicioId, barberoId, fecha y hora son obligatorios");
-  });
-
-  it("responde horario no disponible si DynamoDB simula conflicto", async () => {
-    const repository = createRepositoryMock({
-      getItem: vi.fn().mockResolvedValue({ nombre: "Corte clasico", precio: 30 }),
-      transactWrite: vi.fn().mockRejectedValue({ name: "TransactionCanceledException" })
+  it('barbero solo cambia estados de su agenda', async () => {
+    mocks.getItem.mockResolvedValue({
+      id: 'appointment-id', clientId: client.id, barberId: 'barber-2', serviceId: service.id,
+      date: '2026-07-15', time: '09:00', status: 'CONFIRMADA'
     });
-    const { service } = createService({ repository });
-    const handler = createNuevaReservaHandler(service);
-    const event = lambdaEvent({
-      method: "POST",
-      body: {
-        servicioId: "corte-clasico",
-        barberoId: "barbero_carlos",
-        fecha: "2026-07-10",
-        hora: "10:00"
-      }
-    });
-
-    const response = await handler(event);
-
-    expect(response.statusCode).toBe(400);
-    expect(parseBody(response)).toEqual({ error: "Horario no disponible" });
-  });
-
-  it("cancela reserva del cliente y publica evento de cancelacion", async () => {
-    const repository = createRepositoryMock({
-      queryByPk: vi.fn().mockResolvedValue([
-        {
-          tipo: "RESERVA",
-          reservaId: "res_123",
-          pk: "CLIENTE#cliente-demo",
-          sk: "RESERVA#2026-07-10#10:00",
-          barberoId: "barbero_carlos",
-          fecha: "2026-07-10",
-          hora: "10:00",
-          estado: "CONFIRMADA"
-        }
-      ])
-    });
-    const { service, publishReservationEvent } = createService({ repository });
-    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" } });
-
-    const result = await service.cancelReservation(event);
-
-    expect(result).toEqual({
-      message: "Reserva cancelada correctamente",
-      reservaId: "res_123"
-    });
-    const writes = repository.transactWrite.mock.calls[0][0];
-    expect(writes[0].Put.Item.estado).toBe("CANCELADA");
-    expect(writes[1].Put.Item.pk).toBe("BARBERO#barbero_carlos");
-    expect(publishReservationEvent).toHaveBeenCalledWith("RESERVA_CANCELADA", expect.objectContaining({
-      reservaId: "res_123",
-      estado: "CANCELADA"
-    }));
-  });
-
-  it("rechaza cancelacion sin reservaId", async () => {
-    const { service } = createService();
-    const event = lambdaEvent({ method: "POST" });
-
-    const action = () => service.cancelReservation(event);
-
-    await expect(action).rejects.toThrow("reservaId es obligatorio");
-  });
-
-  it("rechaza cancelacion si la reserva no pertenece al cliente", async () => {
-    const repository = createRepositoryMock({
-      queryByPk: vi.fn().mockResolvedValue([{ tipo: "RESERVA", reservaId: "otra" }])
-    });
-    const { service } = createService({ repository });
-    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" } });
-
-    const action = () => service.cancelReservation(event);
-
-    await expect(action).rejects.toThrow("Reserva no encontrada para este cliente");
-  });
-
-  it("rechaza cancelacion si la reserva ya estaba cancelada", async () => {
-    const repository = createRepositoryMock({
-      queryByPk: vi.fn().mockResolvedValue([
-        { tipo: "RESERVA", reservaId: "res_123", estado: "CANCELADA" }
-      ])
-    });
-    const { service } = createService({ repository });
-    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" } });
-
-    const action = () => service.cancelReservation(event);
-
-    await expect(action).rejects.toThrow("La reserva ya se encuentra cancelada");
-  });
-
-  it("cancela la version activa de una reserva reprogramada", async () => {
-    const repository = createRepositoryMock({
-      queryByPk: vi.fn().mockResolvedValue([
-        {
-          tipo: "RESERVA",
-          reservaId: "res_123",
-          pk: "CLIENTE#cliente-demo",
-          sk: "RESERVA#2026-07-10#10:00",
-          fecha: "2026-07-10",
-          hora: "10:00",
-          estado: "CANCELADA"
-        },
-        {
-          tipo: "RESERVA",
-          reservaId: "res_123",
-          pk: "CLIENTE#cliente-demo",
-          sk: "RESERVA#2026-07-11#15:00",
-          barberoId: "barbero_carlos",
-          fecha: "2026-07-11",
-          hora: "15:00",
-          estado: "CONFIRMADA"
-        }
-      ])
-    });
-    const { service } = createService({ repository });
-    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" } });
-
-    await service.cancelReservation(event);
-
-    const writes = repository.transactWrite.mock.calls[0][0];
-    expect(writes[0].Put.Item).toMatchObject({
-      sk: "RESERVA#2026-07-11#15:00",
-      estado: "CANCELADA"
-    });
-    expect(writes[1].Put.Item).toMatchObject({
-      pk: "BARBERO#barbero_carlos",
-      sk: "RESERVA#2026-07-11#15:00",
-      estado: "CANCELADA"
-    });
-  });
-
-  it("cancela reserva sin copia de agenda cuando no tiene barbero", async () => {
-    const repository = createRepositoryMock({
-      queryByPk: vi.fn().mockResolvedValue([
-        {
-          tipo: "RESERVA",
-          reservaId: "res_123",
-          pk: "CLIENTE#cliente-demo",
-          sk: "RESERVA#2026-07-10#10:00",
-          fecha: "2026-07-10",
-          hora: "10:00",
-          estado: "CONFIRMADA"
-        }
-      ])
-    });
-    const { service } = createService({ repository });
-    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" } });
-
-    await service.cancelReservation(event);
-
-    expect(repository.transactWrite.mock.calls[0][0]).toHaveLength(1);
-  });
-
-  it("reprograma una reserva a nueva fecha y hora", async () => {
-    const repository = createRepositoryMock({
-      queryByPk: vi.fn().mockResolvedValue([
-        {
-          tipo: "RESERVA",
-          reservaId: "res_123",
-          pk: "CLIENTE#cliente-demo",
-          sk: "RESERVA#2026-07-10#10:00",
-          barberoId: "barbero_carlos",
-          fecha: "2026-07-10",
-          hora: "10:00",
-          estado: "CONFIRMADA"
-        }
-      ])
-    });
-    const { service, publishReservationEvent } = createService({ repository });
-    const event = lambdaEvent({
-      method: "POST",
-      pathParameters: { id: "res_123" },
-      body: { fecha: "2026-07-11", hora: "15:00" }
-    });
-
-    const result = await service.rescheduleReservation(event);
-
-    expect(result).toEqual({ message: "Reserva reprogramada correctamente", reservaId: "res_123" });
-    const writes = repository.transactWrite.mock.calls[0][0];
-    expect(writes).toHaveLength(4);
-    expect(writes[0].Put.Item).toMatchObject({ pk: "CLIENTE#cliente-demo", sk: "RESERVA#2026-07-10#10:00", estado: "CANCELADA" });
-    expect(writes[1].Put.Item).toMatchObject({ pk: "CLIENTE#cliente-demo", sk: "RESERVA#2026-07-11#15:00", estado: "CONFIRMADA", fecha: "2026-07-11", hora: "15:00" });
-    expect(writes[2].Put.Item).toMatchObject({ pk: "BARBERO#barbero_carlos", sk: "RESERVA#2026-07-10#10:00", estado: "CANCELADA" });
-    expect(writes[3].Put.Item).toMatchObject({ pk: "BARBERO#barbero_carlos", sk: "RESERVA#2026-07-11#15:00", estado: "CONFIRMADA" });
-    expect(publishReservationEvent).toHaveBeenCalledWith("RESERVA_REPROGRAMADA", expect.objectContaining({ reservaId: "res_123", fecha: "2026-07-11", hora: "15:00" }));
-  });
-
-  it("rechaza reprogramar a la misma fecha y hora", async () => {
-    const repository = createRepositoryMock({
-      queryByPk: vi.fn().mockResolvedValue([
-        { tipo: "RESERVA", reservaId: "res_123", fecha: "2026-07-10", hora: "10:00", estado: "CONFIRMADA" }
-      ])
-    });
-    const { service } = createService({ repository });
-    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" }, body: { fecha: "2026-07-10", hora: "10:00" } });
-
-    const action = () => service.rescheduleReservation(event);
-
-    await expect(action).rejects.toThrow("La nueva fecha y hora deben ser distintas a la actual");
-  });
-
-  it("rechaza reprogramar a una fecha y hora que ya paso", async () => {
-    const { service } = createService();
-    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" }, body: { fecha: "2026-07-01", hora: "09:00" } });
-
-    const action = () => service.rescheduleReservation(event);
-
-    await expect(action).rejects.toThrow("No se puede reservar en una fecha y hora que ya paso");
-  });
-
-  it("rechaza reprogramar una reserva inexistente", async () => {
-    const repository = createRepositoryMock({ queryByPk: vi.fn().mockResolvedValue([]) });
-    const { service } = createService({ repository });
-    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" }, body: { fecha: "2026-07-11", hora: "15:00" } });
-
-    const action = () => service.rescheduleReservation(event);
-
-    await expect(action).rejects.toThrow("Reserva no encontrada para este cliente");
-  });
-
-  it("rechaza reprogramar una reserva ya cancelada", async () => {
-    const repository = createRepositoryMock({
-      queryByPk: vi.fn().mockResolvedValue([
-        { tipo: "RESERVA", reservaId: "res_123", fecha: "2026-07-10", hora: "10:00", estado: "CANCELADA" }
-      ])
-    });
-    const { service } = createService({ repository });
-    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" }, body: { fecha: "2026-07-11", hora: "15:00" } });
-
-    const action = () => service.rescheduleReservation(event);
-
-    await expect(action).rejects.toThrow("La reserva ya se encuentra cancelada");
-  });
-
-  it("rechaza reprogramar sin fecha y hora", async () => {
-    const { service } = createService();
-    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" }, body: {} });
-
-    const action = () => service.rescheduleReservation(event);
-
-    await expect(action).rejects.toThrow("fecha y hora son obligatorios");
-  });
-
-  it("rechaza reprogramar sin reservaId", async () => {
-    const { service } = createService();
-    const event = lambdaEvent({ method: "POST", body: { fecha: "2026-07-11", hora: "15:00" } });
-
-    const action = () => service.rescheduleReservation(event);
-
-    await expect(action).rejects.toThrow("reservaId es obligatorio");
-  });
-
-  it("secretaria crea cita presencial para cliente existente", async () => {
-    const repository = createRepositoryMock({
-      findClienteByEmail: vi.fn().mockResolvedValue({
-        clienteId: "cliente-uno",
-        nombre: "Cliente Uno",
-        email: "cliente@demo.local"
-      }),
-      queryByPk: vi.fn().mockResolvedValue([]),
-      getItem: vi.fn().mockResolvedValue({ nombre: "Corte clasico", precio: 30 })
-    });
-    const { service, publishReservationEvent } = createService({ repository });
-    const event = lambdaEvent({
-      method: "POST",
-      role: "SECRETARIA",
-      user: { email: "secretaria@demo.local", sub: "secretaria-uno" },
-      body: {
-        clienteCorreo: "cliente@demo.local",
-        servicioId: "corte-clasico",
-        barberoId: "barbero_carlos",
-        fecha: "2026-07-10",
-        hora: "10:00"
-      }
-    });
-
-    const result = await service.createPresentialReservation(event);
-
-    expect(result).toEqual({
-      message: "Cita presencial registrada para cliente existente",
-      reservaId: "res_test-id",
-      clienteId: "cliente-uno"
-    });
-    const writes = repository.transactWrite.mock.calls[0][0];
-    expect(writes[0].Put.Item.origen).toBe("PRESENCIAL");
-    expect(writes[0].Put.Item.creadoPor).toBe("secretaria@demo.local");
-    expect(publishReservationEvent).toHaveBeenCalledWith("RESERVA_CREADA", expect.objectContaining({
-      origen: "PRESENCIAL"
-    }));
-  });
-
-  it("secretaria crea cita presencial con defaults de servicio", async () => {
-    const repository = createRepositoryMock({
-      findClienteByEmail: vi.fn().mockResolvedValue({
-        clienteId: "cliente-uno",
-        nombre: "Cliente Uno",
-        email: "cliente@demo.local"
-      }),
-      queryByPk: vi.fn().mockResolvedValue([{ fecha: "2026-07-10", hora: "10:00", estado: "CANCELADA" }]),
-      getItem: vi.fn().mockResolvedValue(undefined)
-    });
-    const { service } = createService({ repository });
-    const event = lambdaEvent({
-      method: "POST",
-      role: "SECRETARIA",
-      user: { email: "secretaria@demo.local", sub: "secretaria-uno" },
-      body: {
-        clienteCorreo: "cliente@demo.local",
-        servicioId: "servicio-desconocido",
-        barberoId: "barbero_carlos",
-        fecha: "2026-07-10",
-        hora: "10:00"
-      }
-    });
-
-    await service.createPresentialReservation(event);
-
-    const writes = repository.transactWrite.mock.calls[0][0];
-    expect(writes[0].Put.Item).toMatchObject({
-      servicioNombre: "servicio-desconocido",
-      precio: 0
-    });
-  });
-
-  it("rechaza cita presencial sin campos obligatorios", async () => {
-    const { service } = createService();
-    const event = lambdaEvent({ method: "POST", role: "SECRETARIA", body: { clienteCorreo: "cliente@demo.local" } });
-
-    const action = () => service.createPresentialReservation(event);
-
-    await expect(action).rejects.toThrow("clienteCorreo, servicioId, barberoId, fecha y hora son obligatorios");
-  });
-
-  it("rechaza cita presencial cuando el evento no trae body", async () => {
-    const { service } = createService();
-    const event = lambdaEvent({ method: "POST", role: "SECRETARIA" });
-
-    const action = () => service.createPresentialReservation(event);
-
-    await expect(action).rejects.toThrow("clienteCorreo, servicioId, barberoId, fecha y hora son obligatorios");
-  });
-
-  it("secretaria falla si el cliente no existe", async () => {
-    const { service } = createService();
-    const event = lambdaEvent({
-      method: "POST",
-      role: "SECRETARIA",
-      body: {
-        clienteCorreo: "nuevo@demo.local",
-        servicioId: "corte-clasico",
-        barberoId: "barbero_carlos",
-        fecha: "2026-07-10",
-        hora: "10:00"
-      }
-    });
-
-    const action = () => service.createPresentialReservation(event);
-
-    await expect(action).rejects.toThrow("El cliente no esta registrado");
-  });
-
-  it("secretaria falla si el horario ya esta ocupado", async () => {
-    const repository = createRepositoryMock({
-      findClienteByEmail: vi.fn().mockResolvedValue({
-        clienteId: "cliente-uno",
-        nombre: "Cliente Uno",
-        email: "cliente@demo.local"
-      }),
-      queryByPk: vi.fn().mockResolvedValue([
-        { fecha: "2026-07-10", hora: "10:00", estado: "CONFIRMADA" }
-      ])
-    });
-    const { service } = createService({ repository });
-    const event = lambdaEvent({
-      method: "POST",
-      role: "SECRETARIA",
-      body: {
-        clienteCorreo: "cliente@demo.local",
-        servicioId: "corte-clasico",
-        barberoId: "barbero_carlos",
-        fecha: "2026-07-10",
-        hora: "10:00"
-      }
-    });
-
-    const action = () => service.createPresentialReservation(event);
-
-    await expect(action).rejects.toThrow("Horario no disponible");
-  });
-
-  it("permite usar reloj real cuando no se inyecta clock", async () => {
-    const repository = createRepositoryMock({
-      getItem: vi.fn().mockResolvedValue({ nombre: "Corte", precio: 30 })
-    });
-    const service = createReservationService({
-      repository,
-      auditLog: vi.fn().mockResolvedValue(undefined),
-      publishReservationEvent: vi.fn().mockResolvedValue(undefined),
-      idGenerator: fixedId(),
-      tableName: "barbercloud-test"
-    });
-    const fechaFutura = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
-    const event = lambdaEvent({
-      method: "POST",
-      body: {
-        servicioId: "corte",
-        barberoId: "barbero_carlos",
-        fecha: fechaFutura,
-        hora: "23:59"
-      }
-    });
-
-    await service.createOnlineReservation(event);
-
-    const writes = repository.transactWrite.mock.calls[0][0];
-    expect(writes[0].Put.Item.creadoEn).toEqual(expect.any(String));
+    await expect(updateAppointmentStatus('appointment-id', 'ATENDIDA', { sub: barber.id, role: 'BARBERO' }))
+      .rejects.toMatchObject({ statusCode: 403 });
   });
 });

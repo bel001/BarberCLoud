@@ -1,136 +1,48 @@
-import { describe, expect, it } from "vitest";
-import {
-  getGroups,
-  getPrimaryRole,
-  getUser,
-  hasRole,
-  requireRole
-} from "../../src/lib/auth.js";
-import { lambdaEvent } from "../helpers/events.js";
+import { describe, expect, it, vi } from 'vitest';
+import { allow, createToken, hashPassword, verifyToken } from '../../src/lib/auth.js';
+import { eventUser, requireEventRole } from '../../src/lib/lambda.js';
+import { lambdaEvent } from '../helpers/events.js';
 
-// Pruebas de autenticacion y roles: verifican claims,
-// grupos Cognito y rechazo cuando el rol no esta autorizado.
-describe("auth helpers", () => {
-  it("lee grupos Cognito desde un string", () => {
-    const event = lambdaEvent();
-    event.requestContext.authorizer.jwt.claims["cognito:groups"] = "[ADMIN, SECRETARIA]";
-
-    const groups = getGroups(event);
-
-    expect(groups).toEqual(["ADMIN", "SECRETARIA"]);
-    expect(hasRole(event, ["SECRETARIA"])).toBe(true);
+describe('auth helpers', () => {
+  it('genera hash determinista sin guardar la contraseña', () => {
+    const hash = hashPassword('BarberCloud2026!');
+    expect(hash).toHaveLength(64);
+    expect(hash).toBe(hashPassword('BarberCloud2026!'));
+    expect(hash).not.toContain('BarberCloud');
   });
 
-  it("lanza 403 cuando el rol no esta autorizado", () => {
-    const event = lambdaEvent({ role: "CLIENTE" });
-
-    const action = () => requireRole(event, ["ADMIN"]);
-
-    expect(action).toThrow("Acceso no autorizado");
-    try {
-      action();
-    } catch (error) {
-      expect(error.statusCode).toBe(403);
-    }
+  it('crea y verifica token local', () => {
+    const token = createToken({ id: 'u1', email: 'u@demo.local', name: 'Usuario', role: 'CLIENTE' });
+    expect(verifyToken(token)).toMatchObject({ sub: 'u1', role: 'CLIENTE' });
   });
 
-  it("devuelve rol anonimo y usuario por defecto si no hay claims", () => {
-    const event = {};
-
-    const role = getPrimaryRole(event);
-    const user = getUser(event);
-
-    expect(role).toBe("ANONIMO");
-    expect(user).toEqual({
-      sub: undefined,
-      email: undefined,
-      name: "Usuario"
-    });
+  it('rechaza token alterado y token vencido', () => {
+    const token = createToken({ id: 'u1', role: 'CLIENTE' });
+    expect(() => verifyToken(`${token}x`)).toThrow();
+    expect(() => verifyToken(createToken({ id: 'u1', role: 'CLIENTE' }, -1))).toThrow('expiró');
   });
 
-  it("parsea grupos cuando es un array", () => {
-    const event = {
-      requestContext: {
-        authorizer: {
-          jwt: {
-            claims: {
-              "cognito:groups": ["ADMIN", "BARBERO"]
-            }
-          }
-        }
-      }
-    };
-
-    const groups = getGroups(event);
-
-    expect(groups).toEqual(["ADMIN", "BARBERO"]);
+  it('lee usuario y grupos Cognito de un evento Lambda', () => {
+    const event = lambdaEvent({ role: 'ADMIN', groups: 'ADMIN, SECRETARIA', user: { sub: 'admin-1' } });
+    expect(eventUser(event)).toMatchObject({ sub: 'admin-1', role: 'ADMIN' });
   });
 
-  it("devuelve rol desde claim role cuando no hay cognito:groups", () => {
-    const event = {
-      requestContext: {
-        authorizer: {
-          jwt: {
-            claims: {
-              role: "SECRETARIA"
-            }
-          }
-        }
-      }
-    };
-
-    const groups = getGroups(event);
-    const role = getPrimaryRole(event);
-
-    expect(groups).toEqual(["SECRETARIA"]);
-    expect(role).toBe("SECRETARIA");
+  it('admin hereda permisos de secretaria y barbero', () => {
+    expect(requireEventRole(lambdaEvent({ role: 'ADMIN' }), 'SECRETARIA').role).toBe('ADMIN');
+    expect(requireEventRole(lambdaEvent({ role: 'ADMIN' }), 'BARBERO').role).toBe('ADMIN');
   });
 
-  it("da acceso cuando rol esta en la lista permitida", () => {
-    const event = {
-      requestContext: {
-        authorizer: {
-          jwt: {
-            claims: {
-              "cognito:groups": ["ADMIN"]
-            }
-          }
-        }
-      }
-    };
-
-    expect(hasRole(event, ["ADMIN", "SUPER"])).toBe(true);
-    expect(hasRole(event, ["BARBERO"])).toBe(false);
+  it('rechaza rol Lambda no autorizado', () => {
+    expect(() => requireEventRole(lambdaEvent({ role: 'CLIENTE' }), 'ADMIN')).toThrow('permisos');
   });
 
-  it("getUser usa email como nombre cuando no hay name", () => {
-    const event = {
-      requestContext: {
-        authorizer: {
-          jwt: {
-            claims: {
-              sub: "user-1",
-              email: "user@demo.local"
-            }
-          }
-        }
-      }
-    };
+  it('middleware allow deja pasar roles válidos y bloquea otros', () => {
+    const nextOk = vi.fn();
+    allow('SECRETARIA')({ user: { role: 'ADMIN' } }, {}, nextOk);
+    expect(nextOk).toHaveBeenCalledWith();
 
-    const user = getUser(event);
-
-    expect(user).toEqual({
-      sub: "user-1",
-      email: "user@demo.local",
-      name: "user@demo.local"
-    });
-  });
-
-  it("getUser sin claims devuelve usuario anonimo", () => {
-    const event = { requestContext: {} };
-
-    const user = getUser(event);
-
-    expect(user.name).toBe("Usuario");
+    const nextDenied = vi.fn();
+    allow('ADMIN')({ user: { role: 'CLIENTE' } }, {}, nextDenied);
+    expect(nextDenied.mock.calls[0][0].statusCode).toBe(403);
   });
 });
