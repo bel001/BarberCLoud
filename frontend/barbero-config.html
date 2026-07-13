@@ -7,9 +7,7 @@
   <link rel="stylesheet" href="assets/css/app.css">
   <link rel="stylesheet" href="assets/css/barbero-panel.css">
 
-<script>
-  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
-</script>
+<script src="assets/js/theme-init.js"></script>
 </head>
 <body>
   <div class="barber-shell">
@@ -65,7 +63,7 @@
         <p>Tu cuenta, notificaciones y protección de acceso.</p>
       </div>
 
-      <div class="wizard-progress" style="margin-bottom:24px;">
+      <div class="wizard-progress mb-6">
         <button type="button" class="btn btn-secondary btn-sm config-tab active" data-tab="general">General</button>
         <button type="button" class="btn btn-secondary btn-sm config-tab" data-tab="notificaciones">Notificaciones</button>
         <button type="button" class="btn btn-secondary btn-sm config-tab" data-tab="facturacion">Facturación</button>
@@ -98,7 +96,7 @@
           <h3>Facturación</h3>
         </div>
         <p class="text-muted mb-4">Resumen de tus ganancias por servicios finalizados.</p>
-        <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="infoGanancias">S/ 0</p>
+        <p id="infoGanancias" class="text-stat font-extrabold text-accent">S/ 0</p>
       </section>
 
       <section class="barber-panel config-panel hidden" data-panel="seguridad">
@@ -114,7 +112,7 @@
 
         <div id="panelConfigurar2fa" class="hidden">
           <p class="text-muted mb-4">Escanea este código en tu app de autenticación, o ingresa la clave manualmente:</p>
-          <p style="font-family:monospace; font-size:1.1rem; word-break:break-all;" id="secreto2fa"></p>
+          <p id="secreto2fa" class="secret-code"></p>
           <div class="form-group">
             <label class="form-label" for="codigoConfirmar2fa">Código de 6 dígitos</label>
             <input type="text" id="codigoConfirmar2fa" class="form-input" maxlength="6" inputmode="numeric">

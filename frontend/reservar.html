@@ -7,9 +7,7 @@
   <link rel="stylesheet" href="assets/css/app.css">
   <link rel="stylesheet" href="assets/css/barbero-panel.css">
 
-<script>
-  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
-</script>
+<script src="assets/js/theme-init.js"></script>
 </head>
 <body>
   <header class="header barber-vars">
@@ -41,9 +39,9 @@
   </header>
 
   <main class="dashboard barber-theme">
-    <div class="container" style="max-width: 720px;">
+    <div class="container max-w-720">
       <p class="eyebrow">Reserva online</p>
-      <h1 style="margin-bottom: 24px;">Reserva tu cita</h1>
+      <h1 class="mb-6">Reserva tu cita</h1>
 
       <div class="wizard-progress" id="wizardProgress">
         <div class="wizard-progress-step" data-step="1"><span>1</span>Servicio</div>
@@ -82,7 +80,7 @@
           <h3 class="mb-4">Resumen de tu reserva</h3>
           <div id="resumenReserva" class="flex flex-col gap-2 mb-4"></div>
           <p class="text-muted mb-4">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="width:18px;height:18px;vertical-align:middle;margin-right:6px;">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="inline-info-icon">
               <circle cx="12" cy="12" r="10"/>
               <line x1="12" y1="16" x2="12" y2="12"/>
               <line x1="12" y1="8" x2="12.01" y2="8"/>
@@ -95,13 +93,13 @@
       </section>
 
       <section class="wizard-step" data-step="5">
-        <div class="dashboard-card" style="text-align:center;">
-          <div class="card-icon" style="margin:0 auto 20px;">
+        <div class="dashboard-card text-center">
+          <div class="card-icon mx-auto mb-5">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
           </div>
           <h3>¡Reserva confirmada!</h3>
           <p class="text-muted mb-4">ID de reserva: <strong id="reservaIdResultado"></strong></p>
-          <div id="resumenFinal" class="flex flex-col gap-2 mb-4" style="text-align:left;"></div>
+          <div id="resumenFinal" class="flex flex-col gap-2 mb-4 text-left"></div>
           <a href="cliente.html" class="btn btn-primary">Ver mis reservas</a>
         </div>
       </section>
@@ -111,7 +109,7 @@
         <button type="button" id="btnSiguiente" class="btn btn-primary">Siguiente</button>
       </div>
 
-      <div id="promoLogin" class="card mt-4" style="text-align:center;padding:24px;">
+      <div id="promoLogin" class="card mt-4 text-center p-6">
         <p class="text-muted">¿Ya tienes cuenta?</p>
         <a class="btn btn-secondary" href="login.html">Iniciar sesión</a>
       </div>

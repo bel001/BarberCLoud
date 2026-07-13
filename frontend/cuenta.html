@@ -7,9 +7,7 @@
   <link rel="stylesheet" href="assets/css/app.css">
   <link rel="stylesheet" href="assets/css/barbero-panel.css">
 
-<script>
-  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
-</script>
+<script src="assets/js/theme-init.js"></script>
 </head>
 <body>
   <div class="barber-shell">
@@ -67,7 +65,7 @@
       </div>
     </aside>
 
-    <main class="barber-main" style="max-width: 720px;">
+    <main class="barber-main max-w-720">
       <div class="barber-topbar">
         <h2>Configuración de Cuenta</h2>
         <p>Tus datos, contraseña y opciones de la cuenta.</p>
@@ -87,7 +85,7 @@
             <label class="form-label" for="emailCuenta">Correo electrónico</label>
             <input type="email" id="emailCuenta" class="form-input" disabled>
           </div>
-          <button class="btn btn-primary" type="submit" style="align-self: flex-start;">Guardar datos</button>
+          <button class="btn btn-primary self-start" type="submit">Guardar datos</button>
         </form>
       </div>
 
@@ -105,13 +103,13 @@
             <label class="form-label" for="passwordNueva">Nueva contraseña</label>
             <input type="password" id="passwordNueva" class="form-input" minlength="8" required>
           </div>
-          <button class="btn btn-primary" type="submit" style="align-self: flex-start;">Actualizar contraseña</button>
+          <button class="btn btn-primary self-start" type="submit">Actualizar contraseña</button>
         </form>
       </div>
 
       <div class="barber-panel dashboard-card-danger">
         <div class="barber-panel-header">
-          <span class="material-symbols-outlined" style="color: var(--danger);">warning</span>
+          <span class="material-symbols-outlined text-danger">warning</span>
           <h3 class="text-danger">Zona de peligro</h3>
         </div>
         <p class="text-muted mb-4">Eliminar tu cuenta es permanente. Perderás el acceso a tus citas, puntos y recompensas.</p>

@@ -13,7 +13,7 @@ function renderClientes(lista) {
 
   container.innerHTML = lista.length
     ? lista.map(cliente => `
-      <div class="list-item" style="cursor:pointer;" data-cliente-id="${escapeHtml(cliente.clienteId)}" data-cliente-nombre="${escapeHtml(cliente.nombre)}">
+      <div class="list-item clickable-list-item" data-cliente-id="${escapeHtml(cliente.clienteId)}" data-cliente-nombre="${escapeHtml(cliente.nombre)}">
         <div class="list-item-info">
           <div class="list-item-title">${escapeHtml(cliente.nombre)}</div>
           <div class="list-item-subtitle">${escapeHtml(cliente.email)}${cliente.telefono ? " • " + escapeHtml(cliente.telefono) : ""}</div>

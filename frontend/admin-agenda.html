@@ -7,9 +7,7 @@
   <link rel="stylesheet" href="assets/css/app.css">
   <link rel="stylesheet" href="assets/css/barbero-panel.css">
 
-<script>
-  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
-</script>
+<script src="assets/js/theme-init.js"></script>
 </head>
 <body>
   <div class="barber-shell">
@@ -75,18 +73,18 @@
       </div>
     </aside>
 
-    <main class="barber-main" style="max-width: 100%;">
+    <main class="barber-main max-w-full">
       <div class="barber-topbar">
         <h2>Agenda Global</h2>
         <p>Vista de todos los barberos con intervención directa sobre cualquier cita.</p>
       </div>
 
-      <div class="form-group" style="max-width: 220px;">
+      <div class="form-group max-w-220">
         <label class="form-label" for="filtroFecha">Fecha</label>
         <input type="date" id="filtroFecha" class="form-input">
       </div>
 
-      <div id="agendaAdminGrid" class="option-grid" style="grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); align-items: start;"></div>
+      <div id="agendaAdminGrid" class="option-grid grid-auto-300 items-start"></div>
     </main>
   </div>
 

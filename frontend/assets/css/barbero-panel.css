@@ -174,12 +174,17 @@
 
 .barber-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 24px;
   align-items: start;
 }
 
+.barber-grid-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.barber-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.barber-grid-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
 .barber-panel {
+  min-width: 0;
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
@@ -215,5 +220,8 @@
   .barber-shell { flex-direction: column; }
   .barber-sidebar { position: static; width: auto; height: auto; }
   .barber-main { margin-left: 0; padding: 24px; }
-  .barber-grid { grid-template-columns: 1fr; }
+  .barber-grid,
+  .barber-grid-2,
+  .barber-grid-3,
+  .barber-grid-4 { grid-template-columns: minmax(0, 1fr); }
 }

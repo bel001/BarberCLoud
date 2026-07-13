@@ -7,9 +7,7 @@
   <link rel="stylesheet" href="assets/css/app.css">
   <link rel="stylesheet" href="assets/css/barbero-panel.css">
 
-<script>
-  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
-</script>
+<script src="assets/js/theme-init.js"></script>
 </head>
 <body>
   <div class="barber-shell">
@@ -73,7 +71,7 @@
         <p>Historial completo de tus reservas.</p>
       </div>
 
-      <div class="wizard-progress" style="margin-bottom: 24px;">
+      <div class="wizard-progress mb-6">
         <button type="button" class="btn btn-secondary btn-sm filtro-citas active" data-filtro="todas">Todas</button>
         <button type="button" class="btn btn-secondary btn-sm filtro-citas" data-filtro="activas">Activas</button>
         <button type="button" class="btn btn-secondary btn-sm filtro-citas" data-filtro="pasadas">Pasadas</button>
