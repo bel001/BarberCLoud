@@ -44,7 +44,6 @@ function onlineReservationEvent(claims = {}) {
 
 describe("reservationService integration con mocks", () => {
   it("crea reserva online para cliente y agenda de barbero", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const { service, repository, publishReservationEvent } = createService();
     const event = lambdaEvent({
       method: "POST",
@@ -56,10 +55,8 @@ describe("reservationService integration con mocks", () => {
       }
     });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = await service.createOnlineReservation(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result).toEqual({
       message: "Reserva creada correctamente",
       reservaId: "res_test-id"
@@ -118,7 +115,6 @@ describe("reservationService integration con mocks", () => {
   });
 
   it("otorga puntos de lealtad al crear una reserva online", async () => {
-    // Arrange
     const repository = createRepositoryMock({
       getItem: vi.fn((pk) => pk.startsWith("SERVICIO#")
         ? Promise.resolve({ nombre: "Corte clasico", precio: 30 })
@@ -135,10 +131,8 @@ describe("reservationService integration con mocks", () => {
       }
     });
 
-    // Act
     await service.createOnlineReservation(event);
 
-    // Assert
     expect(repository.putItem).toHaveBeenCalledWith(expect.objectContaining({
       pk: "CLIENTE#cliente-demo",
       sk: "PROFILE",
@@ -148,7 +142,6 @@ describe("reservationService integration con mocks", () => {
   });
 
   it("crea reserva online usando defaults si el servicio no existe", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const repository = createRepositoryMock({
       getItem: vi.fn().mockResolvedValue(undefined)
     });
@@ -163,10 +156,8 @@ describe("reservationService integration con mocks", () => {
       }
     });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     await service.createOnlineReservation(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     const writes = repository.transactWrite.mock.calls[0][0];
     expect(writes[0].Put.Item).toMatchObject({
       servicioNombre: "servicio-desconocido",
@@ -175,7 +166,6 @@ describe("reservationService integration con mocks", () => {
   });
 
   it("rechaza reserva online con fecha y hora que ya paso", async () => {
-    // Arrange
     const { service } = createService();
     const event = lambdaEvent({
       method: "POST",
@@ -187,39 +177,30 @@ describe("reservationService integration con mocks", () => {
       }
     });
 
-    // Act
     const action = () => service.createOnlineReservation(event);
 
-    // Assert
     await expect(action).rejects.toThrow("No se puede reservar en una fecha y hora que ya paso");
   });
 
   it("rechaza reserva online sin campos obligatorios", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const { service } = createService();
     const event = lambdaEvent({ method: "POST", body: { servicioId: "corte-clasico" } });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const action = () => service.createOnlineReservation(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     await expect(action).rejects.toThrow("servicioId, barberoId, fecha y hora son obligatorios");
   });
 
   it("rechaza reserva online cuando el evento no trae body", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const { service } = createService();
     const event = lambdaEvent({ method: "POST" });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const action = () => service.createOnlineReservation(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     await expect(action).rejects.toThrow("servicioId, barberoId, fecha y hora son obligatorios");
   });
 
   it("responde horario no disponible si DynamoDB simula conflicto", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const repository = createRepositoryMock({
       getItem: vi.fn().mockResolvedValue({ nombre: "Corte clasico", precio: 30 }),
       transactWrite: vi.fn().mockRejectedValue({ name: "TransactionCanceledException" })
@@ -236,16 +217,13 @@ describe("reservationService integration con mocks", () => {
       }
     });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const response = await handler(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     expect(response.statusCode).toBe(400);
     expect(parseBody(response)).toEqual({ error: "Horario no disponible" });
   });
 
   it("cancela reserva del cliente y publica evento de cancelacion", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const repository = createRepositoryMock({
       queryByPk: vi.fn().mockResolvedValue([
         {
@@ -263,10 +241,8 @@ describe("reservationService integration con mocks", () => {
     const { service, publishReservationEvent } = createService({ repository });
     const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" } });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = await service.cancelReservation(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result).toEqual({
       message: "Reserva cancelada correctamente",
       reservaId: "res_123"
@@ -281,34 +257,27 @@ describe("reservationService integration con mocks", () => {
   });
 
   it("rechaza cancelacion sin reservaId", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const { service } = createService();
     const event = lambdaEvent({ method: "POST" });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const action = () => service.cancelReservation(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     await expect(action).rejects.toThrow("reservaId es obligatorio");
   });
 
   it("rechaza cancelacion si la reserva no pertenece al cliente", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const repository = createRepositoryMock({
       queryByPk: vi.fn().mockResolvedValue([{ tipo: "RESERVA", reservaId: "otra" }])
     });
     const { service } = createService({ repository });
     const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" } });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const action = () => service.cancelReservation(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     await expect(action).rejects.toThrow("Reserva no encontrada para este cliente");
   });
 
   it("rechaza cancelacion si la reserva ya estaba cancelada", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const repository = createRepositoryMock({
       queryByPk: vi.fn().mockResolvedValue([
         { tipo: "RESERVA", reservaId: "res_123", estado: "CANCELADA" }
@@ -317,10 +286,8 @@ describe("reservationService integration con mocks", () => {
     const { service } = createService({ repository });
     const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" } });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const action = () => service.cancelReservation(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     await expect(action).rejects.toThrow("La reserva ya se encuentra cancelada");
   });
 
@@ -366,7 +333,6 @@ describe("reservationService integration con mocks", () => {
   });
 
   it("cancela reserva sin copia de agenda cuando no tiene barbero", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const repository = createRepositoryMock({
       queryByPk: vi.fn().mockResolvedValue([
         {
@@ -383,15 +349,12 @@ describe("reservationService integration con mocks", () => {
     const { service } = createService({ repository });
     const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" } });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     await service.cancelReservation(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     expect(repository.transactWrite.mock.calls[0][0]).toHaveLength(1);
   });
 
   it("reprograma una reserva a nueva fecha y hora", async () => {
-    // Arrange
     const repository = createRepositoryMock({
       queryByPk: vi.fn().mockResolvedValue([
         {
@@ -413,10 +376,8 @@ describe("reservationService integration con mocks", () => {
       body: { fecha: "2026-07-11", hora: "15:00" }
     });
 
-    // Act
     const result = await service.rescheduleReservation(event);
 
-    // Assert
     expect(result).toEqual({ message: "Reserva reprogramada correctamente", reservaId: "res_123" });
     const writes = repository.transactWrite.mock.calls[0][0];
     expect(writes).toHaveLength(4);
@@ -428,7 +389,6 @@ describe("reservationService integration con mocks", () => {
   });
 
   it("rechaza reprogramar a la misma fecha y hora", async () => {
-    // Arrange
     const repository = createRepositoryMock({
       queryByPk: vi.fn().mockResolvedValue([
         { tipo: "RESERVA", reservaId: "res_123", fecha: "2026-07-10", hora: "10:00", estado: "CONFIRMADA" }
@@ -437,40 +397,31 @@ describe("reservationService integration con mocks", () => {
     const { service } = createService({ repository });
     const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" }, body: { fecha: "2026-07-10", hora: "10:00" } });
 
-    // Act
     const action = () => service.rescheduleReservation(event);
 
-    // Assert
     await expect(action).rejects.toThrow("La nueva fecha y hora deben ser distintas a la actual");
   });
 
   it("rechaza reprogramar a una fecha y hora que ya paso", async () => {
-    // Arrange
     const { service } = createService();
     const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" }, body: { fecha: "2026-07-01", hora: "09:00" } });
 
-    // Act
     const action = () => service.rescheduleReservation(event);
 
-    // Assert
     await expect(action).rejects.toThrow("No se puede reservar en una fecha y hora que ya paso");
   });
 
   it("rechaza reprogramar una reserva inexistente", async () => {
-    // Arrange
     const repository = createRepositoryMock({ queryByPk: vi.fn().mockResolvedValue([]) });
     const { service } = createService({ repository });
     const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" }, body: { fecha: "2026-07-11", hora: "15:00" } });
 
-    // Act
     const action = () => service.rescheduleReservation(event);
 
-    // Assert
     await expect(action).rejects.toThrow("Reserva no encontrada para este cliente");
   });
 
   it("rechaza reprogramar una reserva ya cancelada", async () => {
-    // Arrange
     const repository = createRepositoryMock({
       queryByPk: vi.fn().mockResolvedValue([
         { tipo: "RESERVA", reservaId: "res_123", fecha: "2026-07-10", hora: "10:00", estado: "CANCELADA" }
@@ -479,39 +430,30 @@ describe("reservationService integration con mocks", () => {
     const { service } = createService({ repository });
     const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" }, body: { fecha: "2026-07-11", hora: "15:00" } });
 
-    // Act
     const action = () => service.rescheduleReservation(event);
 
-    // Assert
     await expect(action).rejects.toThrow("La reserva ya se encuentra cancelada");
   });
 
   it("rechaza reprogramar sin fecha y hora", async () => {
-    // Arrange
     const { service } = createService();
     const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" }, body: {} });
 
-    // Act
     const action = () => service.rescheduleReservation(event);
 
-    // Assert
     await expect(action).rejects.toThrow("fecha y hora son obligatorios");
   });
 
   it("rechaza reprogramar sin reservaId", async () => {
-    // Arrange
     const { service } = createService();
     const event = lambdaEvent({ method: "POST", body: { fecha: "2026-07-11", hora: "15:00" } });
 
-    // Act
     const action = () => service.rescheduleReservation(event);
 
-    // Assert
     await expect(action).rejects.toThrow("reservaId es obligatorio");
   });
 
   it("secretaria crea cita presencial para cliente existente", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const repository = createRepositoryMock({
       findClienteByEmail: vi.fn().mockResolvedValue({
         clienteId: "cliente-uno",
@@ -535,10 +477,8 @@ describe("reservationService integration con mocks", () => {
       }
     });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = await service.createPresentialReservation(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result).toEqual({
       message: "Cita presencial registrada para cliente existente",
       reservaId: "res_test-id",
@@ -553,7 +493,6 @@ describe("reservationService integration con mocks", () => {
   });
 
   it("secretaria crea cita presencial con defaults de servicio", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const repository = createRepositoryMock({
       findClienteByEmail: vi.fn().mockResolvedValue({
         clienteId: "cliente-uno",
@@ -577,10 +516,8 @@ describe("reservationService integration con mocks", () => {
       }
     });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     await service.createPresentialReservation(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     const writes = repository.transactWrite.mock.calls[0][0];
     expect(writes[0].Put.Item).toMatchObject({
       servicioNombre: "servicio-desconocido",
@@ -589,31 +526,24 @@ describe("reservationService integration con mocks", () => {
   });
 
   it("rechaza cita presencial sin campos obligatorios", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const { service } = createService();
     const event = lambdaEvent({ method: "POST", role: "SECRETARIA", body: { clienteCorreo: "cliente@demo.local" } });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const action = () => service.createPresentialReservation(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     await expect(action).rejects.toThrow("clienteCorreo, servicioId, barberoId, fecha y hora son obligatorios");
   });
 
   it("rechaza cita presencial cuando el evento no trae body", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const { service } = createService();
     const event = lambdaEvent({ method: "POST", role: "SECRETARIA" });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const action = () => service.createPresentialReservation(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     await expect(action).rejects.toThrow("clienteCorreo, servicioId, barberoId, fecha y hora son obligatorios");
   });
 
   it("secretaria falla si el cliente no existe", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const { service } = createService();
     const event = lambdaEvent({
       method: "POST",
@@ -627,15 +557,12 @@ describe("reservationService integration con mocks", () => {
       }
     });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const action = () => service.createPresentialReservation(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     await expect(action).rejects.toThrow("El cliente no esta registrado");
   });
 
   it("secretaria falla si el horario ya esta ocupado", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const repository = createRepositoryMock({
       findClienteByEmail: vi.fn().mockResolvedValue({
         clienteId: "cliente-uno",
@@ -659,15 +586,12 @@ describe("reservationService integration con mocks", () => {
       }
     });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const action = () => service.createPresentialReservation(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     await expect(action).rejects.toThrow("Horario no disponible");
   });
 
   it("permite usar reloj real cuando no se inyecta clock", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const repository = createRepositoryMock({
       getItem: vi.fn().mockResolvedValue({ nombre: "Corte", precio: 30 })
     });
@@ -689,10 +613,8 @@ describe("reservationService integration con mocks", () => {
       }
     });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     await service.createOnlineReservation(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     const writes = repository.transactWrite.mock.calls[0][0];
     expect(writes[0].Put.Item.creadoEn).toEqual(expect.any(String));
   });

@@ -50,24 +50,18 @@ describe("notifications", () => {
   });
 
   it("no publica reserva si no existe TOPIC_ARN", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const { publishReservationEvent } = await importNotifications();
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     await publishReservationEvent("RESERVA_CREADA", { reservaId: "res_1" });
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     expect(snsSend).not.toHaveBeenCalled();
   });
 
   it("publica evento de reserva en SNS con atributo de tipo", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const { publishReservationEvent } = await importNotifications({ TOPIC_ARN: "arn:test:sns" });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     await publishReservationEvent("RESERVA_CREADA", { reservaId: "res_1" });
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     expect(snsSend).toHaveBeenCalledTimes(1);
     expect(snsSend.mock.calls[0][0].input).toEqual({
       TopicArn: "arn:test:sns",
@@ -82,17 +76,14 @@ describe("notifications", () => {
   });
 
   it("encola notificacion si falta remitente SES", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const { sendReservationEmail } = await importNotifications({ NOTIFICATION_QUEUE_URL: "https://sqs.test/queue" });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = await sendReservationEmail({
       to: "cliente@demo.local",
       subject: "Reserva",
       message: "Confirmada"
     });
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result).toEqual({ queued: true });
     expect(sesSend).not.toHaveBeenCalled();
     expect(sqsSend.mock.calls[0][0].input).toEqual({
@@ -107,18 +98,15 @@ describe("notifications", () => {
   });
 
   it("envia email por SES cuando hay remitente y destinatario", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     sesSend.mockResolvedValueOnce({});
     const { sendReservationEmail } = await importNotifications({ SES_SENDER_EMAIL: "no-reply@barbercloud.com" });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = await sendReservationEmail({
       to: "cliente@demo.local",
       subject: "Reserva",
       message: "Confirmada"
     });
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result).toEqual({ sent: true });
     expect(sesSend.mock.calls[0][0].input).toMatchObject({
       Source: "no-reply@barbercloud.com",
@@ -127,7 +115,6 @@ describe("notifications", () => {
   });
 
   it("parsea registros desde SNS y SQS", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const { getSnsRecords } = await importNotifications();
     const event = {
       Records: [
@@ -137,10 +124,8 @@ describe("notifications", () => {
       ]
     };
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const records = getSnsRecords(event);
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     expect(records).toEqual([
       { eventType: "SNS" },
       { eventType: "SQS" },
@@ -149,29 +134,22 @@ describe("notifications", () => {
   });
 
   it("devuelve lista vacia cuando no hay registros SNS o SQS", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const { getSnsRecords } = await importNotifications();
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const records = getSnsRecords({});
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     expect(records).toEqual([]);
   });
 
   it("ignora encolado cuando no existe URL de cola", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     const { enqueueNotification } = await importNotifications();
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     await enqueueNotification({ to: "cliente@demo.local" });
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     expect(sqsSend).not.toHaveBeenCalled();
   });
 
   it("encola notificacion cuando SES falla", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
     sesSend.mockRejectedValueOnce(new Error("SES connection timeout"));
     sqsSend.mockResolvedValueOnce({});
     const { sendReservationEmail } = await importNotifications({
@@ -179,14 +157,12 @@ describe("notifications", () => {
       NOTIFICATION_QUEUE_URL: "https://sqs.test/queue"
     });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
     const result = await sendReservationEmail({
       to: "cliente@demo.local",
       subject: "Reserva",
       message: "Confirmada"
     });
 
-    // Verificar: confirmar la respuesta y los efectos esperados
     expect(result).toEqual({ queued: true });
     expect(sqsSend).toHaveBeenCalled();
     expect(sqsSend.mock.calls[0][0].input.MessageBody).toContain("SES connection timeout");
