@@ -82,11 +82,24 @@ function buildReservationWrites({ reservaCliente, barberoId, fecha, hora, tableN
 }
 
 function getClientIdentity(user) {
-  const clienteId = user.sub || user.email || "cliente-desconocido";
+  if (!user.sub) {
+    throw new ServiceError("Identidad de cliente no valida", 401);
+  }
+
+  const clienteId = user.sub;
   const clienteCorreo = user.email || "";
   const clienteNombre = user.name;
 
   return { clienteId, clienteCorreo, clienteNombre };
+}
+
+function findReservationById(reservas, reservaId) {
+  const matches = reservas.filter(item =>
+    item.tipo === "RESERVA" &&
+    item.reservaId === reservaId
+  );
+
+  return matches.find(item => item.estado !== "CANCELADA") || matches[0];
 }
 
 export function createReservationService({
@@ -164,10 +177,7 @@ export function createReservationService({
       assertReservaNoEsPasada(nuevaFecha, nuevaHora, ahora);
 
       const reservas = await repository.queryByPk(`CLIENTE#${clienteId}`);
-      const reserva = reservas.find(item =>
-        item.tipo === "RESERVA" &&
-        item.reservaId === reservaId
-      );
+      const reserva = findReservationById(reservas, reservaId);
 
       if (!reserva) {
         throw new ServiceError("Reserva no encontrada para este cliente");
@@ -258,10 +268,7 @@ export function createReservationService({
       }
 
       const reservas = await repository.queryByPk(`CLIENTE#${clienteId}`);
-      const reserva = reservas.find(item =>
-        item.tipo === "RESERVA" &&
-        item.reservaId === reservaId
-      );
+      const reserva = findReservationById(reservas, reservaId);
 
       if (!reserva) {
         throw new ServiceError("Reserva no encontrada para este cliente");

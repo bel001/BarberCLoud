@@ -77,87 +77,44 @@ describe("reservationService integration con mocks", () => {
     }));
   });
 
-  it("crea reserva online usando email como identificador si el token no trae sub", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
+  it("rechaza reserva online si el token no trae sub", async () => {
     const { service, repository } = createService();
     const event = onlineReservationEvent({ email: "cliente@demo.local" });
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
-    await service.createOnlineReservation(event);
-
-    // Verificar: confirmar la respuesta y los efectos esperados
-    const writes = repository.transactWrite.mock.calls[0][0];
-    expect(writes[0].Put.Item).toMatchObject({
-      pk: "CLIENTE#cliente@demo.local",
-      clienteId: "cliente@demo.local",
-      clienteNombre: "cliente@demo.local",
-      clienteCorreo: "cliente@demo.local"
+    await expect(service.createOnlineReservation(event)).rejects.toMatchObject({
+      message: "Identidad de cliente no valida",
+      statusCode: 401
     });
-    expect(repository.putItem).toHaveBeenCalledWith(expect.objectContaining({
-      pk: "CLIENTE#cliente@demo.local",
-      clienteId: "cliente@demo.local"
-    }));
+    expect(repository.transactWrite).not.toHaveBeenCalled();
   });
 
-  it("consulta la reserva por email al cancelar si el token no trae sub", async () => {
-    const repository = createRepositoryMock({
-      queryByPk: vi.fn().mockResolvedValue([{
-        tipo: "RESERVA",
-        reservaId: "res_email",
-        pk: "CLIENTE#cliente@demo.local",
-        sk: "RESERVA#2026-07-10#10:00",
-        fecha: "2026-07-10",
-        hora: "10:00",
-        estado: "CONFIRMADA"
-      }])
-    });
+  it("rechaza cancelacion si el token no trae sub", async () => {
+    const repository = createRepositoryMock();
     const { service } = createService({ repository });
     const event = onlineReservationEvent({ email: "cliente@demo.local" });
     event.pathParameters = { id: "res_email" };
 
-    await service.cancelReservation(event);
-
-    expect(repository.queryByPk).toHaveBeenCalledWith("CLIENTE#cliente@demo.local");
+    await expect(service.cancelReservation(event)).rejects.toThrow("Identidad de cliente no valida");
+    expect(repository.queryByPk).not.toHaveBeenCalled();
   });
 
-  it("consulta la reserva por email al reprogramar si el token no trae sub", async () => {
-    const repository = createRepositoryMock({
-      queryByPk: vi.fn().mockResolvedValue([{
-        tipo: "RESERVA",
-        reservaId: "res_email",
-        pk: "CLIENTE#cliente@demo.local",
-        sk: "RESERVA#2026-07-10#10:00",
-        fecha: "2026-07-10",
-        hora: "10:00",
-        estado: "CONFIRMADA"
-      }])
-    });
+  it("rechaza reprogramacion si el token no trae sub", async () => {
+    const repository = createRepositoryMock();
     const { service } = createService({ repository });
     const event = onlineReservationEvent({ email: "cliente@demo.local" });
     event.pathParameters = { id: "res_email" };
     event.body = JSON.stringify({ fecha: "2026-07-11", hora: "15:00" });
 
-    await service.rescheduleReservation(event);
-
-    expect(repository.queryByPk).toHaveBeenCalledWith("CLIENTE#cliente@demo.local");
+    await expect(service.rescheduleReservation(event)).rejects.toThrow("Identidad de cliente no valida");
+    expect(repository.queryByPk).not.toHaveBeenCalled();
   });
 
-  it("crea reserva online con identidad visible aunque el token no traiga datos de cliente", async () => {
-    // Preparar: definir datos, mocks y contexto del caso
+  it("rechaza reserva online si el token no trae identidad", async () => {
     const { service, repository } = createService();
     const event = onlineReservationEvent();
 
-    // Ejecutar: llamar la funcion o handler bajo prueba
-    await service.createOnlineReservation(event);
-
-    // Verificar: confirmar la respuesta y los efectos esperados
-    const writes = repository.transactWrite.mock.calls[0][0];
-    expect(writes[0].Put.Item).toMatchObject({
-      pk: "CLIENTE#cliente-desconocido",
-      clienteId: "cliente-desconocido",
-      clienteNombre: "Usuario",
-      clienteCorreo: ""
-    });
+    await expect(service.createOnlineReservation(event)).rejects.toThrow("Identidad de cliente no valida");
+    expect(repository.transactWrite).not.toHaveBeenCalled();
   });
 
   it("otorga puntos de lealtad al crear una reserva online", async () => {
@@ -365,6 +322,47 @@ describe("reservationService integration con mocks", () => {
 
     // Verificar: confirmar la respuesta y los efectos esperados
     await expect(action).rejects.toThrow("La reserva ya se encuentra cancelada");
+  });
+
+  it("cancela la version activa de una reserva reprogramada", async () => {
+    const repository = createRepositoryMock({
+      queryByPk: vi.fn().mockResolvedValue([
+        {
+          tipo: "RESERVA",
+          reservaId: "res_123",
+          pk: "CLIENTE#cliente-demo",
+          sk: "RESERVA#2026-07-10#10:00",
+          fecha: "2026-07-10",
+          hora: "10:00",
+          estado: "CANCELADA"
+        },
+        {
+          tipo: "RESERVA",
+          reservaId: "res_123",
+          pk: "CLIENTE#cliente-demo",
+          sk: "RESERVA#2026-07-11#15:00",
+          barberoId: "barbero_carlos",
+          fecha: "2026-07-11",
+          hora: "15:00",
+          estado: "CONFIRMADA"
+        }
+      ])
+    });
+    const { service } = createService({ repository });
+    const event = lambdaEvent({ method: "POST", pathParameters: { id: "res_123" } });
+
+    await service.cancelReservation(event);
+
+    const writes = repository.transactWrite.mock.calls[0][0];
+    expect(writes[0].Put.Item).toMatchObject({
+      sk: "RESERVA#2026-07-11#15:00",
+      estado: "CANCELADA"
+    });
+    expect(writes[1].Put.Item).toMatchObject({
+      pk: "BARBERO#barbero_carlos",
+      sk: "RESERVA#2026-07-11#15:00",
+      estado: "CANCELADA"
+    });
   });
 
   it("cancela reserva sin copia de agenda cuando no tiene barbero", async () => {
