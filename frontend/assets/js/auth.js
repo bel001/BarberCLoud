@@ -7,10 +7,30 @@ const AUTH = {
     const raw = localStorage.getItem("barbercloud_session");
     if (!raw) return null;
     try {
-      return JSON.parse(raw);
+      const session = JSON.parse(raw);
+
+      if (this.isTokenExpired(session.token)) {
+        localStorage.removeItem("barbercloud_session");
+        return null;
+      }
+
+      return session;
     } catch {
       localStorage.removeItem("barbercloud_session");
       return null;
+    }
+  },
+
+  isTokenExpired(token) {
+    if (!token || !token.includes(".")) return false;
+
+    try {
+      const claims = this.decodeJwt(token);
+      if (!claims.exp) return false;
+
+      return claims.exp * 1000 <= Date.now() + 30000;
+    } catch {
+      return true;
     }
   },
 
@@ -74,7 +94,8 @@ const AUTH = {
 
   decodeJwt(token) {
     const payload = token.split(".")[1];
-    const decoded = atob(payload.replace(/-/g, "+").replace(/_/g, "/"));
+    const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const decoded = atob(normalized.padEnd(Math.ceil(normalized.length / 4) * 4, "="));
     return JSON.parse(decodeURIComponent(decoded.split("").map(char =>
       `%${(`00${char.charCodeAt(0).toString(16)}`).slice(-2)}`
     ).join("")));

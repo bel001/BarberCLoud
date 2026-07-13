@@ -3,7 +3,9 @@ const API = {
     const urls = BARBERCLOUD_CONFIG.API_BASE_URLS || {};
 
     if (path.startsWith("/disponibilidad")) return urls.disponibilidad || BARBERCLOUD_CONFIG.API_BASE_URL;
-    if (path.startsWith("/reservas/") && path.includes("/cancelar")) return urls.cancelar || BARBERCLOUD_CONFIG.API_BASE_URL;
+    if (path.startsWith("/reservas/") && (path.includes("/cancelar") || path.includes("/reprogramar"))) {
+      return urls.cancelar || BARBERCLOUD_CONFIG.API_BASE_URL;
+    }
     if (path.startsWith("/barbero")) return urls.barbero || BARBERCLOUD_CONFIG.API_BASE_URL;
     if (path.startsWith("/secretaria")) return urls.secretaria || BARBERCLOUD_CONFIG.API_BASE_URL;
     if (path.startsWith("/admin")) return urls.administrador || BARBERCLOUD_CONFIG.API_BASE_URL;

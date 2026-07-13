@@ -1,5 +1,11 @@
 document.getElementById("login-form").addEventListener("submit", async (event) => {
   event.preventDefault();
+
+  if (BARBERCLOUD_CONFIG.AUTH_MODE === "cognito") {
+    AUTH.loginWithCognito();
+    return;
+  }
+
   const btn = document.getElementById("login-btn");
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
