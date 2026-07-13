@@ -1,34 +1,33 @@
 resource "aws_ssm_parameter" "table_name" {
-  name   = "/${local.name}/table-name"
-  type   = "SecureString"
-  key_id = aws_kms_key.app.arn
-  value  = aws_dynamodb_table.barbercloud.name
+  name  = "/${local.prefix}/table-name"
+  type  = "String"
+  value = aws_dynamodb_table.main.name
 }
 
-resource "aws_ssm_parameter" "reservas_topic_arn" {
-  name   = "/${local.name}/reservas-topic-arn"
-  type   = "SecureString"
-  key_id = aws_kms_key.app.arn
-  value  = aws_sns_topic.reservas.arn
+resource "aws_ssm_parameter" "reservation_topic" {
+  name  = "/${local.prefix}/reservation-topic-arn"
+  type  = "String"
+  value = aws_sns_topic.reservation_created.arn
 }
 
-resource "aws_ssm_parameter" "disponibilidad_topic_arn" {
-  name   = "/${local.name}/disponibilidad-topic-arn"
-  type   = "SecureString"
-  key_id = aws_kms_key.app.arn
-  value  = aws_sns_topic.disponibilidad.arn
+resource "aws_ssm_parameter" "cancellation_topic" {
+  name  = "/${local.prefix}/cancellation-topic-arn"
+  type  = "String"
+  value = aws_sns_topic.reservation_cancelled.arn
 }
 
-resource "aws_ssm_parameter" "notificaciones_queue_url" {
-  name   = "/${local.name}/notificaciones-queue-url"
-  type   = "SecureString"
-  key_id = aws_kms_key.app.arn
-  value  = aws_sqs_queue.notificaciones.url
-}
+resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
+  alarm_name          = "${local.prefix}-lambda-errors"
+  comparison_operator = "GreaterThanThreshold"
+  evaluation_periods  = 1
+  metric_name         = "Errors"
+  namespace           = "AWS/Lambda"
+  period              = 300
+  statistic           = "Sum"
+  threshold           = 0
+  alarm_description   = "Alerta cuando alguna Lambda del proyecto reporta errores."
 
-resource "aws_ssm_parameter" "user_pool_id" {
-  name   = "/${local.name}/user-pool-id"
-  type   = "SecureString"
-  key_id = aws_kms_key.app.arn
-  value  = aws_cognito_user_pool.users.id
+  dimensions = {
+    FunctionName = aws_lambda_function.functions["reservas_cliente"].function_name
+  }
 }

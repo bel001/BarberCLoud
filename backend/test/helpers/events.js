@@ -1,28 +1,29 @@
-// Helpers para construir eventos Lambda simulados y leer respuestas JSON.
-// Evitan repetir la estructura de API Gateway en cada prueba.
 export function lambdaEvent({
-  method = "GET",
-  rawPath = "/",
+  method = 'GET',
+  rawPath = '/',
   body,
   pathParameters,
   queryStringParameters,
   user = {},
-  role = "CLIENTE"
+  role = 'CLIENTE',
+  groups
 } = {}) {
+  const groupClaim = groups || role;
   return {
     rawPath,
     body: body === undefined ? undefined : JSON.stringify(body),
     pathParameters,
     queryStringParameters,
     requestContext: {
-      http: { method },
+      http: { method, path: rawPath },
       authorizer: {
         jwt: {
           claims: {
-            sub: user.sub || "cliente-demo",
-            email: user.email || "cliente@demo.local",
-            name: user.name || "Cliente Demo",
-            role
+            sub: user.sub || 'cliente-demo',
+            email: user.email || 'cliente@demo.local',
+            name: user.name || 'Cliente Demo',
+            role,
+            'cognito:groups': groupClaim
           }
         }
       }

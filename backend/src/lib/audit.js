@@ -1,24 +1,21 @@
-import { v4 as uuid } from "uuid";
-import { getPrimaryRole, getUser } from "./auth.js";
-import { putItem } from "./dynamodb.js";
+import { randomUUID } from 'node:crypto';
+import { putItem } from './repository.js';
 
-export async function audit(event, action, status, detail = {}) {
-  const user = getUser(event);
-  const role = getPrimaryRole(event);
-  const now = new Date().toISOString();
-
+export async function audit({ actorId = 'SYSTEM', actorRole = 'SYSTEM', action, resource, details = {} }) {
+  const id = randomUUID();
+  const createdAt = new Date().toISOString();
   await putItem({
-    pk: `AUDIT#${now.slice(0, 10)}`,
-    sk: `${now}#${uuid()}`,
-    gsi1pk: `AUDIT_USER#${user.sub || user.email || "system"}`,
-    gsi1sk: now,
-    tipo: "AUDIT_LOG",
+    PK: `AUDIT#${id}`,
+    SK: 'META',
+    GSI1PK: 'AUDIT',
+    GSI1SK: createdAt,
+    entityType: 'AUDIT',
+    id,
+    actorId,
+    actorRole,
     action,
-    status,
-    responsable: user.email || "system",
-    usuarioId: user.sub || "system",
-    rol: role,
-    detail,
-    creadoEn: now
+    resource,
+    details,
+    createdAt
   });
 }

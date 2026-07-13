@@ -1,81 +1,56 @@
-import {
-  CreateTableCommand,
-  DescribeTableCommand,
-  DynamoDBClient,
-  waitUntilTableExists
-} from "@aws-sdk/client-dynamodb";
+import { CreateTableCommand, DescribeTableCommand } from '@aws-sdk/client-dynamodb';
+import { dynamoClient } from '../src/lib/db.js';
+import { config } from '../src/lib/config.js';
 
-const tableName = process.env.TABLE_NAME || "barbercloud-local";
-const dynamodbConfig = {
-  region: process.env.AWS_REGION || "us-east-1"
-};
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-if (process.env.DYNAMODB_ENDPOINT) {
-  dynamodbConfig.endpoint = process.env.DYNAMODB_ENDPOINT;
-  dynamodbConfig.credentials = {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID || "local",
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || "local"
-  };
-}
-
-const client = new DynamoDBClient(dynamodbConfig);
-
-async function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-async function waitForDynamoDB() {
-  for (let attempt = 1; attempt <= 20; attempt += 1) {
+async function waitForDynamo() {
+  for (let attempt = 1; attempt <= 30; attempt += 1) {
     try {
-      await client.send(new DescribeTableCommand({ TableName: tableName }));
-      return "exists";
+      await dynamoClient.send(new DescribeTableCommand({ TableName: config.tableName }));
+      return 'exists';
     } catch (error) {
-      if (error.name === "ResourceNotFoundException") {
-        return "missing";
-      }
-
-      if (attempt === 20) {
-        throw error;
-      }
-
-      await sleep(1000);
+      if (error.name === 'ResourceNotFoundException') return 'missing';
+      if (attempt === 30) throw error;
+      console.log(`Esperando DynamoDB (${attempt}/30)...`);
+      await sleep(2000);
     }
   }
-
-  return "missing";
+  return 'missing';
 }
 
-const status = await waitForDynamoDB();
-
-if (status === "exists") {
-  console.log(`DynamoDB table already exists: ${tableName}`);
+const state = await waitForDynamo();
+if (state === 'exists') {
+  console.log(`Tabla ${config.tableName} ya existe.`);
   process.exit(0);
 }
 
-await client.send(new CreateTableCommand({
-  TableName: tableName,
-  BillingMode: "PAY_PER_REQUEST",
+await dynamoClient.send(new CreateTableCommand({
+  TableName: config.tableName,
+  BillingMode: 'PAY_PER_REQUEST',
   AttributeDefinitions: [
-    { AttributeName: "pk", AttributeType: "S" },
-    { AttributeName: "sk", AttributeType: "S" },
-    { AttributeName: "gsi1pk", AttributeType: "S" },
-    { AttributeName: "gsi1sk", AttributeType: "S" }
+    { AttributeName: 'PK', AttributeType: 'S' },
+    { AttributeName: 'SK', AttributeType: 'S' },
+    { AttributeName: 'GSI1PK', AttributeType: 'S' },
+    { AttributeName: 'GSI1SK', AttributeType: 'S' }
   ],
   KeySchema: [
-    { AttributeName: "pk", KeyType: "HASH" },
-    { AttributeName: "sk", KeyType: "RANGE" }
+    { AttributeName: 'PK', KeyType: 'HASH' },
+    { AttributeName: 'SK', KeyType: 'RANGE' }
   ],
-  GlobalSecondaryIndexes: [
-    {
-      IndexName: "gsi1",
-      KeySchema: [
-        { AttributeName: "gsi1pk", KeyType: "HASH" },
-        { AttributeName: "gsi1sk", KeyType: "RANGE" }
-      ],
-      Projection: { ProjectionType: "ALL" }
-    }
-  ]
+  GlobalSecondaryIndexes: [{
+    IndexName: 'GSI1',
+    KeySchema: [
+      { AttributeName: 'GSI1PK', KeyType: 'HASH' },
+      { AttributeName: 'GSI1SK', KeyType: 'RANGE' }
+    ],
+    Projection: { ProjectionType: 'ALL' }
+  }]
 }));
 
-await waitUntilTableExists({ client, maxWaitTime: 30 }, { TableName: tableName });
-console.log(`DynamoDB table created: ${tableName}`);
+for (let attempt = 1; attempt <= 20; attempt += 1) {
+  const description = await dynamoClient.send(new DescribeTableCommand({ TableName: config.tableName }));
+  if (description.Table?.TableStatus === 'ACTIVE') break;
+  await sleep(500);
+}
+console.log(`Tabla ${config.tableName} creada y activa.`);

@@ -1,37 +1,12 @@
-import { v4 as uuid } from "uuid";
-import { requireRole } from "../lib/auth.js";
-import { audit } from "../lib/audit.js";
-import * as repository from "../lib/dynamodb.js";
-import { created, ok, badRequest, serverError } from "../lib/response.js";
-import { ServiceError } from "../services/errors.js";
-import { createPosService } from "../services/posService.js";
+import { eventMethod, eventPath, parseBody, requireEventRole, wrap } from '../lib/lambda.js';
+import { closeCash, createSale, getCurrentCashSession, listSales, openCash } from '../services/pos-service.js';
 
-const posService = createPosService({
-  repository,
-  auditLog: audit,
-  idGenerator: uuid
+export const handler = wrap((event) => {
+  const user = requireEventRole(event, 'SECRETARIA');
+  const path = eventPath(event);
+  const method = eventMethod(event);
+  if (path.endsWith('/cash/current')) return getCurrentCashSession();
+  if (path.endsWith('/cash/open')) return openCash(parseBody(event), user);
+  if (path.endsWith('/cash/close')) return closeCash(parseBody(event), user);
+  return method === 'POST' ? createSale(parseBody(event), user) : listSales();
 });
-
-export function createGestionPOSHandler(service) {
-  return async function gestionPOSHandler(event) {
-    try {
-      requireRole(event, ["SECRETARIA", "ADMIN"]);
-
-      const method = event.requestContext.http.method;
-
-      if (method === "POST") {
-        return created(await service.registerSale(event));
-      }
-
-      return ok(await service.listSales());
-    } catch (error) {
-      if (error instanceof ServiceError) {
-        return badRequest(error.message);
-      }
-
-      return serverError(error);
-    }
-  };
-}
-
-export const handler = createGestionPOSHandler(posService);

@@ -1,48 +1,14 @@
-import { v4 as uuid } from "uuid";
-import { requireRole } from "../lib/auth.js";
-import { audit } from "../lib/audit.js";
-import { putItem, scanByTipo } from "../lib/dynamodb.js";
-import { created, ok, badRequest, serverError } from "../lib/response.js";
+import { eventMethod, eventPath, parseBody, requireEventRole, wrap } from '../lib/lambda.js';
+import { createService, getBusinessConfig, listServices, updateBusinessConfig, updateService } from '../services/business-service.js';
 
-export async function handler(event) {
-  try {
-    requireRole(event, ["ADMIN"]);
-
-    const method = event.requestContext.http.method;
-
-    if (method === "POST") {
-      return await guardarServicio(event);
-    }
-
-    return ok({ servicios: await scanByTipo("SERVICIO") });
-  } catch (error) {
-    return serverError(error);
+export const handler = wrap((event) => {
+  const user = requireEventRole(event, 'ADMIN');
+  const method = eventMethod(event);
+  const path = eventPath(event);
+  if (path.includes('/services')) {
+    if (method === 'POST') return createService(parseBody(event), user);
+    if (method === 'PATCH') return updateService(event.pathParameters.id, parseBody(event), user);
+    return listServices({ activeOnly: false });
   }
-}
-
-async function guardarServicio(event) {
-  const body = JSON.parse(event.body || "{}");
-  const { servicioId = `servicio_${uuid()}`, nombre, precio, duracionMinutos = 45, estado = "ACTIVO" } = body;
-
-  if (!nombre || precio === undefined) {
-    return badRequest("nombre y precio son obligatorios");
-  }
-
-  await putItem({
-    pk: `SERVICIO#${servicioId}`,
-    sk: "PROFILE",
-    gsi1pk: "SERVICIO",
-    gsi1sk: nombre,
-    tipo: "SERVICIO",
-    servicioId,
-    nombre,
-    precio: Number(precio),
-    duracionMinutos: Number(duracionMinutos),
-    estado,
-    actualizadoEn: new Date().toISOString()
-  });
-
-  await audit(event, "NEGOCIO_SERVICIO_GUARDAR", "OK", { servicioId, precio });
-
-  return created({ message: "Servicio guardado", servicioId });
-}
+  return method === 'PATCH' ? updateBusinessConfig(parseBody(event), user) : getBusinessConfig();
+});

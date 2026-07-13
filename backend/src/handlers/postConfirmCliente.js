@@ -1,36 +1,21 @@
-import { AdminAddUserToGroupCommand, CognitoIdentityProviderClient } from "@aws-sdk/client-cognito-identity-provider";
-import { putItem } from "../lib/dynamodb.js";
+import { AdminAddUserToGroupCommand, CognitoIdentityProviderClient } from '@aws-sdk/client-cognito-identity-provider';
+import { config } from '../lib/config.js';
+import { upsertCognitoClient } from '../services/user-service.js';
 
-const cognito = new CognitoIdentityProviderClient({ region: process.env.AWS_REGION || "us-east-1" });
+const cognito = new CognitoIdentityProviderClient({ region: config.region });
 
-export async function handler(event) {
+export const handler = async (event) => {
   const attributes = event.request?.userAttributes || {};
-  const email = attributes.email;
-  const sub = attributes.sub || event.userName;
-  const name = attributes.name || email || "Cliente";
-  const userPoolId = event.userPoolId || process.env.USER_POOL_ID;
-
-  if (userPoolId && event.userName) {
-    await cognito.send(new AdminAddUserToGroupCommand({
-      UserPoolId: userPoolId,
-      Username: event.userName,
-      GroupName: "CLIENTE"
-    }));
-  }
-
-  if (email && sub) {
-    await putItem({
-      pk: `CLIENTE#${sub}`,
-      sk: "PROFILE",
-      tipo: "CLIENTE",
-      clienteId: sub,
-      nombre: name,
-      email,
-      gsi1pk: `CLIENTE_EMAIL#${email}`,
-      gsi1sk: `CLIENTE#${sub}`,
-      creadoEn: new Date().toISOString()
-    });
-  }
-
+  await cognito.send(new AdminAddUserToGroupCommand({
+    UserPoolId: event.userPoolId,
+    Username: event.userName,
+    GroupName: 'CLIENTE'
+  }));
+  await upsertCognitoClient({
+    id: attributes.sub,
+    name: attributes.name || attributes.email,
+    email: attributes.email,
+    phone: attributes.phone_number || ''
+  });
   return event;
-}
+};
