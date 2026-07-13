@@ -1,373 +1,135 @@
-import express from "express";
-import cors from "cors";
-import { v4 as uuidv4 } from "uuid";
-import { generateSecret, verifyTotp, buildOtpAuthUri } from "./lib/totp.js";
-
-import { handler as disponibilidad } from "./handlers/consultarDisponibilidad.js";
-import { handler as nuevaReserva } from "./handlers/nuevaReserva.js";
-import { handler as misReservas } from "./handlers/misReservas.js";
-import { handler as cancelarReserva } from "./handlers/cancelarReserva.js";
-import { handler as reprogramarReserva } from "./handlers/reprogramarReserva.js";
-import { handler as gestionClientes } from "./handlers/gestionClientes.js";
-import { handler as gestionCuenta } from "./handlers/gestionCuenta.js";
-import { handler as gestionRecompensas } from "./handlers/gestionRecompensas.js";
-import { handler as agendaBarbero } from "./handlers/gestionAgendaBarbero.js";
-import { handler as actualizarEstadoCita } from "./handlers/actualizarEstadoCita.js";
-import { handler as reporteFinanciero } from "./handlers/gestionFinanciera.js";
-import { handler as gestionInsumos } from "./handlers/gestionInsumos.js";
-import { handler as gestionPOS } from "./handlers/gestionPOS.js";
-import { handler as gestionCaja } from "./handlers/gestionCaja.js";
-import { handler as gestionInventario } from "./handlers/gestionInventario.js";
-import { handler as gestionPersonal } from "./handlers/gestionPersonal.js";
-import { handler as gestionNegocio } from "./handlers/gestionNegocio.js";
-import { handler as gestionConfigNegocio } from "./handlers/gestionConfigNegocio.js";
-import { handler as gestionActividad } from "./handlers/gestionActividad.js";
+import express from 'express';
+import cors from 'cors';
+import { config } from './lib/config.js';
+import { AppError } from './lib/errors.js';
+import { authMiddleware, allow } from './lib/auth.js';
+import { ok } from './lib/response.js';
+import { login, registerClient, createClientByStaff, getUser, updateProfile, listUsers, createStaff, updateStaff } from './services/user-service.js';
+import { listServices, getBusinessConfig, createService, updateService, updateBusinessConfig } from './services/business-service.js';
+import { listBarbers, getAvailability, createAppointment, listAppointments, rescheduleAppointment, cancelAppointment, updateAppointmentStatus } from './services/appointment-service.js';
+import { listInventory, createInventoryItem, updateInventory, registerUsage } from './services/inventory-service.js';
+import { getCurrentCashSession, openCash, closeCash, createSale, listSales } from './services/pos-service.js';
+import { getFinance } from './services/finance-service.js';
+import { scanByType } from './lib/repository.js';
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+app.disable('x-powered-by');
+app.use(cors({ origin: config.corsOrigin === '*' ? true : config.corsOrigin }));
+app.use(express.json({ limit: '1mb' }));
 
-app.use(cors());
-app.use(express.json());
+const asyncRoute = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
+const send = (res, data, message) => res.json(ok(data, message));
 
-const demoUsers = [
-  { email: "cliente@barbercloud.com", password: "BarberCloud2026!", role: "CLIENTE", sub: "cliente-demo", name: "Cliente Demo" },
-  { email: "secretaria@barbercloud.com", password: "BarberCloud2026!", role: "SECRETARIA", sub: "secretaria-demo", name: "Secretaria Demo" },
-  { email: "barbero@barbercloud.com", password: "BarberCloud2026!", role: "BARBERO", sub: "barbero_carlos", name: "Carlos Barbero" },
-  { email: "admin@barbercloud.com", password: "BarberCloud2026!", role: "ADMIN", sub: "admin-demo", name: "Administrador" }
-];
+app.get('/health', (_req, res) => res.json({ ok: true, service: 'barbercloud-backend', mode: 'local', timestamp: new Date().toISOString() }));
 
-function lambdaEvent(req, role = null, user = null) {
-  return {
-    body: Object.keys(req.body || {}).length ? JSON.stringify(req.body) : null,
-    rawPath: req.path,
-    queryStringParameters: req.query,
-    pathParameters: req.params,
-    requestContext: {
-      http: {
-        method: req.method
-      },
-      authorizer: {
-        jwt: {
-          claims: user ? {
-            sub: user.sub,
-            email: user.email,
-            name: user.name,
-            "cognito:groups": role || user.role
-          } : {}
-        }
-      }
-    }
-  };
-}
+// Solo local. En AWS, Cognito Hosted UI y API Gateway JWT reemplazan estas dos rutas.
+app.post('/api/auth/login', asyncRoute(async (req, res) => send(res, await login(req.body), 'Sesión iniciada')));
+app.post('/api/auth/register', asyncRoute(async (req, res) => send(res, await registerClient(req.body), 'Cuenta creada')));
 
-function authLocal(req, res, next) {
-  const token = req.headers.authorization?.replace("Bearer ", "");
-  const user = demoUsers.find(item => `local-${item.role}-${item.sub}` === token);
+// API pública
+app.get('/api/public/services', asyncRoute(async (_req, res) => send(res, await listServices())));
+app.get('/api/public/barbers', asyncRoute(async (_req, res) => send(res, await listBarbers())));
+app.get('/api/public/business', asyncRoute(async (_req, res) => send(res, await getBusinessConfig())));
+app.get('/api/public/availability', asyncRoute(async (req, res) => send(res, await getAvailability(req.query))));
 
-  if (!user) {
-    return res.status(401).json({ error: "Sesion no valida" });
-  }
+// Cliente
+app.use('/api/client', authMiddleware, allow('CLIENTE'));
+app.get('/api/client/me', asyncRoute(async (req, res) => send(res, await getUser(req.user.sub))));
+app.put('/api/client/me', asyncRoute(async (req, res) => send(res, await updateProfile(req.user.sub, req.body, req.user), 'Perfil actualizado')));
+app.get('/api/client/appointments', asyncRoute(async (req, res) => send(res, await listAppointments({ clientId: req.user.sub, ...req.query }, req.user))));
+app.post('/api/client/appointments', asyncRoute(async (req, res) => send(res, await createAppointment({ ...req.body, clientId: req.user.sub }, req.user, 'ONLINE'), 'Reserva creada')));
+app.put('/api/client/appointments/:id/reschedule', asyncRoute(async (req, res) => send(res, await rescheduleAppointment(req.params.id, req.body, req.user), 'Reserva reprogramada')));
+app.delete('/api/client/appointments/:id', asyncRoute(async (req, res) => send(res, await cancelAppointment(req.params.id, req.user), 'Reserva cancelada')));
 
-  req.localUser = user;
-  next();
-}
+// Barbero
+app.use('/api/barber', authMiddleware, allow('BARBERO'));
+app.get('/api/barber/agenda', asyncRoute(async (req, res) => send(res, await listAppointments({ barberId: req.user.sub, date: req.query.date }, req.user))));
+app.patch('/api/barber/appointments/:id/status', asyncRoute(async (req, res) => send(res, await updateAppointmentStatus(req.params.id, req.body.status, req.user), 'Estado actualizado')));
+app.get('/api/barber/supplies', asyncRoute(async (_req, res) => send(res, await listInventory())));
+app.post('/api/barber/supplies/usage', asyncRoute(async (req, res) => send(res, await registerUsage(req.body, req.user), 'Consumo registrado')));
 
-async function sendLambda(res, result) {
-  res.status(result.statusCode || 200).set(result.headers || {}).send(result.body);
-}
+const clientList = async (req, res) => send(res, await listUsers({ role: 'CLIENTE', search: req.query.search }));
+const clientCreate = async (req, res) => send(res, await createClientByStaff(req.body, req.user), 'Cliente registrado');
+const globalAgenda = async (req, res) => send(res, await listAppointments(req.query, req.user));
+const walkInAppointment = async (req, res) => send(res, await createAppointment(req.body, req.user, 'PRESENCIAL'), 'Cita presencial registrada');
+const inventoryList = async (_req, res) => send(res, await listInventory());
+const inventoryCreate = async (req, res) => send(res, await createInventoryItem(req.body, req.user), 'Insumo creado');
+const inventoryUpdate = async (req, res) => send(res, await updateInventory(req.params.id, req.body, req.user), 'Inventario actualizado');
+const salesList = async (_req, res) => send(res, await listSales());
+const salesCreate = async (req, res) => send(res, await createSale(req.body, req.user), 'Venta registrada');
+const cashCurrent = async (_req, res) => send(res, await getCurrentCashSession());
+const cashOpen = async (req, res) => send(res, await openCash(req.body, req.user), 'Caja abierta');
+const cashClose = async (req, res) => send(res, await closeCash(req.body, req.user), 'Caja cerrada');
 
-app.get("/health", (req, res) => {
-  res.json({ status: "ok", service: "barbercloud-backend" });
-});
+// Secretaria. ADMIN también está autorizado por la matriz de permisos de allow().
+app.use('/api/secretary', authMiddleware, allow('SECRETARIA'));
+app.get('/api/secretary/clients', asyncRoute(clientList));
+app.post('/api/secretary/clients', asyncRoute(clientCreate));
+app.get('/api/secretary/agenda', asyncRoute(globalAgenda));
+app.post('/api/secretary/appointments', asyncRoute(walkInAppointment));
+app.get('/api/secretary/inventory', asyncRoute(inventoryList));
+app.post('/api/secretary/inventory', asyncRoute(inventoryCreate));
+app.patch('/api/secretary/inventory/:id', asyncRoute(inventoryUpdate));
+app.get('/api/secretary/pos/sales', asyncRoute(salesList));
+app.post('/api/secretary/pos/sales', asyncRoute(salesCreate));
+app.get('/api/secretary/cash/current', asyncRoute(cashCurrent));
+app.post('/api/secretary/cash/open', asyncRoute(cashOpen));
+app.post('/api/secretary/cash/close', asyncRoute(cashClose));
 
-app.post("/dev/login", (req, res) => {
-  const { email, password, codigo2fa } = req.body;
+// Administrador
+app.use('/api/admin', authMiddleware, allow('ADMIN'));
+app.get('/api/admin/dashboard', asyncRoute(async (req, res) => {
+  const [finance, users, inventory, appointments] = await Promise.all([
+    getFinance(), listUsers(), listInventory(), listAppointments({}, req.user)
+  ]);
+  send(res, {
+    finance,
+    users: users.length,
+    clients: users.filter((item) => item.role === 'CLIENTE').length,
+    staff: users.filter((item) => item.role !== 'CLIENTE').length,
+    lowStock: inventory.filter((item) => item.stock <= item.minimum).length,
+    appointmentsToday: appointments.filter((item) => item.date === new Date().toISOString().slice(0, 10)).length
+  });
+}));
+app.get('/api/admin/staff', asyncRoute(async (req, res) => send(res, await listUsers({ search: req.query.search }).then((items) => items.filter((item) => item.role !== 'CLIENTE')))));
+app.post('/api/admin/staff', asyncRoute(async (req, res) => send(res, await createStaff(req.body, req.user), 'Personal creado')));
+app.patch('/api/admin/staff/:id', asyncRoute(async (req, res) => send(res, await updateStaff(req.params.id, req.body, req.user), 'Personal actualizado')));
+app.get('/api/admin/services', asyncRoute(async (_req, res) => send(res, await listServices({ activeOnly: false }))));
+app.post('/api/admin/services', asyncRoute(async (req, res) => send(res, await createService(req.body, req.user), 'Servicio creado')));
+app.patch('/api/admin/services/:id', asyncRoute(async (req, res) => send(res, await updateService(req.params.id, req.body, req.user), 'Servicio actualizado')));
+app.get('/api/admin/business', asyncRoute(async (_req, res) => send(res, await getBusinessConfig())));
+app.patch('/api/admin/business', asyncRoute(async (req, res) => send(res, await updateBusinessConfig(req.body, req.user), 'Negocio actualizado')));
+app.get('/api/admin/finance', asyncRoute(async (req, res) => send(res, await getFinance(req.query))));
+app.get('/api/admin/audit', asyncRoute(async (_req, res) => {
+  const items = await scanByType('AUDIT');
+  send(res, items.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 200));
+}));
 
-  const user = demoUsers.find(item => item.email === email && item.password === password);
+// Alias operativos del administrador. Reutilizan exactamente los mismos servicios.
+app.get('/api/admin/clients', asyncRoute(clientList));
+app.post('/api/admin/clients', asyncRoute(clientCreate));
+app.get('/api/admin/agenda', asyncRoute(globalAgenda));
+app.post('/api/admin/appointments', asyncRoute(walkInAppointment));
+app.get('/api/admin/inventory', asyncRoute(inventoryList));
+app.post('/api/admin/inventory', asyncRoute(inventoryCreate));
+app.patch('/api/admin/inventory/:id', asyncRoute(inventoryUpdate));
+app.get('/api/admin/pos/sales', asyncRoute(salesList));
+app.post('/api/admin/pos/sales', asyncRoute(salesCreate));
+app.get('/api/admin/cash/current', asyncRoute(cashCurrent));
+app.post('/api/admin/cash/open', asyncRoute(cashOpen));
+app.post('/api/admin/cash/close', asyncRoute(cashClose));
 
-  if (!user) {
-    return res.status(401).json({ error: "Credenciales incorrectas" });
-  }
-
-  if (user.twoFactorEnabled) {
-    if (!codigo2fa) {
-      return res.json({ requiere2fa: true });
-    }
-
-    if (!verifyTotp(user.twoFactorSecret, codigo2fa)) {
-      return res.status(401).json({ error: "Código de verificación inválido" });
-    }
-  }
-
-  res.json({
-    token: `local-${user.role}-${user.sub}`,
-    role: user.role,
-    sub: user.sub,
-    email: user.email,
-    name: user.name
+app.use((_req, _res, next) => next(new AppError('Ruta no encontrada', 404, 'NOT_FOUND')));
+app.use((error, _req, res, _next) => {
+  const statusCode = error instanceof AppError ? error.statusCode : 500;
+  if (statusCode >= 500) console.error(error);
+  res.status(statusCode).json({
+    ok: false,
+    error: error instanceof AppError ? error.code : 'INTERNAL_ERROR',
+    message: error instanceof AppError ? error.message : 'Ocurrió un error interno'
   });
 });
 
-app.post("/dev/register", (req, res) => {
-  const { nombre, email, password } = req.body;
-
-  if (!nombre || !email || !password) {
-    return res.status(400).json({ error: "nombre, email y password son obligatorios" });
-  }
-
-  if (demoUsers.some(item => item.email === email)) {
-    return res.status(409).json({ error: "Ya existe una cuenta con ese correo" });
-  }
-
-  const user = { email, password, role: "CLIENTE", sub: `cliente_${uuidv4()}`, name: nombre };
-  demoUsers.push(user);
-
-  res.status(201).json({
-    token: `local-${user.role}-${user.sub}`,
-    role: user.role,
-    email: user.email,
-    name: user.name
-  });
-});
-
-app.post("/dev/cambiar-password", authLocal, (req, res) => {
-  const { passwordActual, passwordNueva } = req.body;
-
-  if (!passwordActual || !passwordNueva) {
-    return res.status(400).json({ error: "passwordActual y passwordNueva son obligatorios" });
-  }
-
-  if (req.localUser.password !== passwordActual) {
-    return res.status(401).json({ error: "La contraseña actual es incorrecta" });
-  }
-
-  req.localUser.password = passwordNueva;
-  res.json({ message: "Contraseña actualizada correctamente" });
-});
-
-app.delete("/dev/cuenta", authLocal, (req, res) => {
-  const index = demoUsers.findIndex(item => item === req.localUser);
-
-  if (index !== -1) {
-    demoUsers.splice(index, 1);
-  }
-
-  res.json({ message: "Cuenta eliminada correctamente" });
-});
-
-app.get("/dev/2fa/estado", authLocal, (req, res) => {
-  res.json({ habilitado: Boolean(req.localUser.twoFactorEnabled) });
-});
-
-app.post("/dev/2fa/iniciar", authLocal, (req, res) => {
-  const secret = generateSecret();
-  req.localUser.pendingTwoFactorSecret = secret;
-
-  res.json({
-    secret,
-    otpauthUri: buildOtpAuthUri(secret, req.localUser.email)
-  });
-});
-
-app.post("/dev/2fa/confirmar", authLocal, (req, res) => {
-  const { codigo } = req.body;
-
-  if (!req.localUser.pendingTwoFactorSecret) {
-    return res.status(400).json({ error: "Primero debes iniciar la activación del 2FA" });
-  }
-
-  if (!verifyTotp(req.localUser.pendingTwoFactorSecret, codigo)) {
-    return res.status(401).json({ error: "Código de verificación inválido" });
-  }
-
-  req.localUser.twoFactorSecret = req.localUser.pendingTwoFactorSecret;
-  req.localUser.twoFactorEnabled = true;
-  delete req.localUser.pendingTwoFactorSecret;
-
-  res.json({ message: "Verificación en dos pasos activada correctamente" });
-});
-
-app.post("/dev/2fa/desactivar", authLocal, (req, res) => {
-  const { codigo } = req.body;
-
-  if (!req.localUser.twoFactorEnabled) {
-    return res.status(400).json({ error: "El 2FA no está activado" });
-  }
-
-  if (!verifyTotp(req.localUser.twoFactorSecret, codigo)) {
-    return res.status(401).json({ error: "Código de verificación inválido" });
-  }
-
-  req.localUser.twoFactorEnabled = false;
-  delete req.localUser.twoFactorSecret;
-
-  res.json({ message: "Verificación en dos pasos desactivada" });
-});
-
-app.get("/cliente/cuenta", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionCuenta(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.put("/cliente/cuenta", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionCuenta(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/disponibilidad", async (req, res) => {
-  await sendLambda(res, await disponibilidad(lambdaEvent(req)));
-});
-
-app.post("/reservas", authLocal, async (req, res) => {
-  await sendLambda(res, await nuevaReserva(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/cliente/reservas", authLocal, async (req, res) => {
-  await sendLambda(res, await misReservas(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.post("/reservas/:id/cancelar", authLocal, async (req, res) => {
-  await sendLambda(res, await cancelarReserva(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.post("/reservas/:id/reprogramar", authLocal, async (req, res) => {
-  await sendLambda(res, await reprogramarReserva(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/cliente/recompensas", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionRecompensas(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.post("/cliente/recompensas", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionRecompensas(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.post("/secretaria/reservas-presenciales", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionClientes(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/secretaria/clientes", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionClientes(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.post("/secretaria/clientes", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionClientes(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/secretaria/clientes/:id/historial", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionClientes(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/secretaria/agenda", authLocal, async (req, res) => {
-  await sendLambda(res, await agendaBarbero(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/secretaria/pos", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionPOS(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.post("/secretaria/pos", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionPOS(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.post("/secretaria/caja/abrir", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionCaja(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.post("/secretaria/caja/cerrar", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionCaja(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/secretaria/inventario", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionInventario(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.post("/secretaria/inventario", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionInventario(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/barbero/agenda", authLocal, async (req, res) => {
-  await sendLambda(res, await agendaBarbero(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.put("/barbero/turno", authLocal, async (req, res) => {
-  await sendLambda(res, await agendaBarbero(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.post("/barbero/citas/:id/estado", authLocal, async (req, res) => {
-  await sendLambda(res, await actualizarEstadoCita(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/barbero/insumos", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionInsumos(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.post("/barbero/insumos", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionInsumos(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/admin/reporte-financiero", authLocal, async (req, res) => {
-  await sendLambda(res, await reporteFinanciero(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/admin/personal", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionPersonal(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.post("/admin/personal", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionPersonal(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.post("/admin/personal/:id/baja", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionPersonal(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/admin/servicios", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionNegocio(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.post("/admin/servicios", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionNegocio(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/admin/agenda", authLocal, async (req, res) => {
-  await sendLambda(res, await agendaBarbero(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/admin/insumos", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionInsumos(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/admin/inventario", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionInventario(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.post("/admin/inventario", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionInventario(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/admin/pos", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionPOS(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/admin/dashboard-financiero", authLocal, async (req, res) => {
-  await sendLambda(res, await reporteFinanciero(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.post("/admin/citas/:id/estado", authLocal, async (req, res) => {
-  await sendLambda(res, await actualizarEstadoCita(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/admin/config-negocio", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionConfigNegocio(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.put("/admin/config-negocio", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionConfigNegocio(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.get("/admin/actividad", authLocal, async (req, res) => {
-  await sendLambda(res, await gestionActividad(lambdaEvent(req, req.localUser.role, req.localUser)));
-});
-
-app.listen(PORT, () => {
-  console.log(`BarberCloud backend local en puerto ${PORT}`);
+app.listen(config.port, () => {
+  console.log(`BarberCloud API local en http://localhost:${config.port}`);
 });

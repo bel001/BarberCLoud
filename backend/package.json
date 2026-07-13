@@ -1,6 +1,6 @@
 {
   "name": "barbercloud-backend",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Backend local y handlers serverless para BarberCloud",
   "type": "module",
   "private": true,
