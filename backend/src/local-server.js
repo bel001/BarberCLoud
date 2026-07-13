@@ -80,6 +80,12 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", service: "barbercloud-backend" });
 });
 
+app.get("/api/servicios", async (req, res) => {
+  const result = await disponibilidad(lambdaEvent(req));
+  const body = JSON.parse(result.body || "{}");
+  res.status(result.statusCode || 200).json({ servicios: body.servicios || [] });
+});
+
 app.post("/dev/login", (req, res) => {
   const { email, password, codigo2fa } = req.body;
 

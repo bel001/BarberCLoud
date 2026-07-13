@@ -2,7 +2,7 @@ locals {
   cors_config = {
     allow_credentials = false
     allow_headers     = ["authorization", "content-type"]
-    allow_methods     = ["GET", "POST", "OPTIONS"]
+    allow_methods     = ["GET", "POST", "PUT", "OPTIONS"]
     allow_origins     = var.allowed_origins
     max_age           = 3600
   }
@@ -412,6 +412,14 @@ locals {
       authorization_type = "JWT"
       authorizer_id      = aws_apigatewayv2_authorizer.administrador_jwt.id
     }
+    admin_inventario_post = {
+      api_id             = aws_apigatewayv2_api.administrador.id
+      execution_arn      = aws_apigatewayv2_api.administrador.execution_arn
+      route_key          = "POST /admin/inventario"
+      lambda_key         = "gestion_inventario"
+      authorization_type = "JWT"
+      authorizer_id      = aws_apigatewayv2_authorizer.administrador_jwt.id
+    }
     admin_pos_get = {
       api_id             = aws_apigatewayv2_api.administrador.id
       execution_arn      = aws_apigatewayv2_api.administrador.execution_arn
@@ -473,6 +481,8 @@ resource "aws_apigatewayv2_integration" "routes" {
 }
 
 resource "aws_apigatewayv2_route" "routes" {
+  #checkov:skip=CKV_AWS_309:Todas las entradas de local.api_routes declaran authorization_type JWT y un authorizer_id de Cognito.
+
   for_each = local.api_routes
 
   api_id             = each.value.api_id
