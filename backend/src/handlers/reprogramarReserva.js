@@ -24,7 +24,7 @@ export function createReprogramarReservaHandler(service) {
       return ok(await service.rescheduleReservation(event));
     } catch (error) {
       if (error instanceof ServiceError) {
-        return badRequest(error.message);
+        return serverError(error);
       }
 
       if (isConflictError(error)) {
