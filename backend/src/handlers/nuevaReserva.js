@@ -24,7 +24,7 @@ export function createNuevaReservaHandler(service) {
       return created(await service.createOnlineReservation(event));
     } catch (error) {
       if (error instanceof ServiceError) {
-        return badRequest(error.message);
+        return serverError(error);
       }
 
       if (isConflictError(error)) {

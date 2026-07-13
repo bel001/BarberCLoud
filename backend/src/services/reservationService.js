@@ -82,11 +82,24 @@ function buildReservationWrites({ reservaCliente, barberoId, fecha, hora, tableN
 }
 
 function getClientIdentity(user) {
-  const clienteId = user.sub || user.email || "cliente-desconocido";
+  if (!user.sub) {
+    throw new ServiceError("Identidad de cliente no valida", 401);
+  }
+
+  const clienteId = user.sub;
   const clienteCorreo = user.email || "";
   const clienteNombre = user.name;
 
   return { clienteId, clienteCorreo, clienteNombre };
+}
+
+function findReservationById(reservas, reservaId) {
+  const matches = reservas.filter(item =>
+    item.tipo === "RESERVA" &&
+    item.reservaId === reservaId
+  );
+
+  return matches.find(item => item.estado !== "CANCELADA") || matches[0];
 }
 
 export function createReservationService({
@@ -134,7 +147,7 @@ export function createReservationService({
       await publishReservationEvent("RESERVA_CREADA", reservaCliente);
 
       try {
-        await otorgarPuntosLealtad(repository, { clienteId: user.sub, nombre: user.name, email: user.email });
+        await otorgarPuntosLealtad(repository, { clienteId, nombre: clienteNombre, email: clienteCorreo });
       } catch {
         // Los puntos de lealtad no deben bloquear la confirmacion de la reserva
       }
@@ -147,6 +160,7 @@ export function createReservationService({
 
     async rescheduleReservation(event) {
       const user = getUser(event);
+      const { clienteId } = getClientIdentity(user);
       const reservaId = event.pathParameters?.id;
       const body = JSON.parse(event.body || "{}");
       const { fecha: nuevaFecha, hora: nuevaHora } = body;
@@ -162,11 +176,8 @@ export function createReservationService({
       const ahora = clock();
       assertReservaNoEsPasada(nuevaFecha, nuevaHora, ahora);
 
-      const reservas = await repository.queryByPk(`CLIENTE#${user.sub}`);
-      const reserva = reservas.find(item =>
-        item.tipo === "RESERVA" &&
-        item.reservaId === reservaId
-      );
+      const reservas = await repository.queryByPk(`CLIENTE#${clienteId}`);
+      const reserva = findReservationById(reservas, reservaId);
 
       if (!reserva) {
         throw new ServiceError("Reserva no encontrada para este cliente");
@@ -249,17 +260,15 @@ export function createReservationService({
 
     async cancelReservation(event) {
       const user = getUser(event);
+      const { clienteId } = getClientIdentity(user);
       const reservaId = event.pathParameters?.id;
 
       if (!reservaId) {
         throw new ServiceError("reservaId es obligatorio");
       }
 
-      const reservas = await repository.queryByPk(`CLIENTE#${user.sub}`);
-      const reserva = reservas.find(item =>
-        item.tipo === "RESERVA" &&
-        item.reservaId === reservaId
-      );
+      const reservas = await repository.queryByPk(`CLIENTE#${clienteId}`);
+      const reserva = findReservationById(reservas, reservaId);
 
       if (!reserva) {
         throw new ServiceError("Reserva no encontrada para este cliente");

@@ -7,9 +7,7 @@
   <link rel="stylesheet" href="assets/css/app.css">
   <link rel="stylesheet" href="assets/css/barbero-panel.css">
 
-<script>
-  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
-</script>
+<script src="assets/js/theme-init.js"></script>
 </head>
 <body>
   <div class="barber-shell">
@@ -81,52 +79,52 @@
         <p>Resumen general del negocio y accesos rápidos.</p>
       </div>
 
-      <div class="barber-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
+      <div class="barber-grid barber-grid-4 mb-6">
         <div class="barber-panel">
           <div class="barber-panel-header">
             <span class="material-symbols-outlined">event_available</span>
             <h3>Total reservas</h3>
           </div>
-          <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="statTotalReservas">0</p>
+          <p id="statTotalReservas" class="text-stat font-extrabold text-accent">0</p>
         </div>
         <div class="barber-panel">
           <div class="barber-panel-header">
             <span class="material-symbols-outlined">swap_horiz</span>
             <h3>Online / Presencial</h3>
           </div>
-          <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="statOnlinePresencial">0 / 0</p>
+          <p id="statOnlinePresencial" class="text-stat font-extrabold text-accent">0 / 0</p>
         </div>
         <div class="barber-panel">
           <div class="barber-panel-header">
             <span class="material-symbols-outlined">payments</span>
             <h3>Ingresos estimados</h3>
           </div>
-          <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="statIngresos">S/ 0</p>
+          <p id="statIngresos" class="text-stat font-extrabold text-accent">S/ 0</p>
         </div>
         <div class="barber-panel">
           <div class="barber-panel-header">
             <span class="material-symbols-outlined">percent</span>
             <h3>Comisión vigente</h3>
           </div>
-          <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="statComision">40%</p>
+          <p id="statComision" class="text-stat font-extrabold text-accent">40%</p>
         </div>
       </div>
 
       <div class="barber-grid">
-        <div class="barber-panel" style="grid-column: 1 / -1;">
-          <div class="barber-panel-header" style="justify-content:space-between;">
-            <h3 style="display:flex;align-items:center;gap:10px;">
+        <div class="barber-panel grid-full">
+          <div class="barber-panel-header justify-between">
+            <h3 class="flex items-center gap-2-5">
               <span class="material-symbols-outlined">bar_chart</span>
               Ingresos mensuales
             </h3>
             <a href="admin-financiero.html" class="btn btn-secondary btn-sm">Ver dashboard financiero</a>
           </div>
-          <div id="graficoIngresos" class="flex" style="align-items:flex-end; gap:16px; height:180px; padding-top:16px;"></div>
+          <div id="graficoIngresos" class="flex chart-layout"></div>
         </div>
 
         <div class="barber-panel">
-          <div class="barber-panel-header" style="justify-content:space-between;">
-            <h3 style="display:flex;align-items:center;gap:10px;">
+          <div class="barber-panel-header justify-between">
+            <h3 class="flex items-center gap-2-5">
               <span class="material-symbols-outlined">group</span>
               Gestión de personal
             </h3>
@@ -136,8 +134,8 @@
         </div>
 
         <div class="barber-panel">
-          <div class="barber-panel-header" style="justify-content:space-between;">
-            <h3 style="display:flex;align-items:center;gap:10px;">
+          <div class="barber-panel-header justify-between">
+            <h3 class="flex items-center gap-2-5">
               <span class="material-symbols-outlined">policy</span>
               Política del local
             </h3>
@@ -146,7 +144,7 @@
           <p class="text-muted" id="resumenPolitica">Cargando...</p>
         </div>
 
-        <div class="barber-panel" style="grid-column: 1 / -1;">
+        <div class="barber-panel grid-full">
           <div class="barber-panel-header">
             <span class="material-symbols-outlined">history</span>
             <h3>Flujo de actividad</h3>

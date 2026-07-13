@@ -7,9 +7,7 @@
   <link rel="stylesheet" href="assets/css/app.css">
   <link rel="stylesheet" href="assets/css/barbero-panel.css">
 
-<script>
-  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
-</script>
+<script src="assets/js/theme-init.js"></script>
 </head>
 <body>
   <div class="barber-shell">
@@ -75,13 +73,13 @@
       </div>
     </aside>
 
-    <main class="barber-main" style="max-width: 720px;">
+    <main class="barber-main max-w-720">
       <div class="barber-topbar">
         <h2>Configuración y Seguridad</h2>
         <p>Tu cuenta y protección de acceso.</p>
       </div>
 
-      <div class="barber-panel" style="margin-bottom: 24px;">
+      <div class="barber-panel mb-6">
         <div class="barber-panel-header">
           <span class="material-symbols-outlined">badge</span>
           <h3>Datos de la cuenta</h3>
@@ -93,7 +91,7 @@
         </div>
       </div>
 
-      <div class="barber-panel" style="margin-bottom: 24px;">
+      <div class="barber-panel mb-6" data-local-auth-only>
         <div class="barber-panel-header">
           <span class="material-symbols-outlined">lock</span>
           <h3>Cambiar contraseña</h3>
@@ -107,11 +105,11 @@
             <label class="form-label" for="passwordNueva">Nueva contraseña</label>
             <input type="password" id="passwordNueva" class="form-input" minlength="8" required>
           </div>
-          <button class="btn btn-primary" type="submit" style="align-self: flex-start;">Actualizar contraseña</button>
+          <button class="btn btn-primary self-start" type="submit">Actualizar contraseña</button>
         </form>
       </div>
 
-      <div class="barber-panel">
+      <div class="barber-panel" data-local-auth-only>
         <div class="barber-panel-header">
           <span class="material-symbols-outlined">verified_user</span>
           <h3>Verificación en dos pasos (2FA)</h3>
@@ -124,7 +122,7 @@
 
         <div id="panelConfigurar2fa" class="hidden">
           <p class="text-muted mb-4">Escanea este código en tu app de autenticación, o ingresa la clave manualmente:</p>
-          <p style="font-family:monospace; font-size:1.1rem; word-break:break-all;" id="secreto2fa"></p>
+          <p id="secreto2fa" class="secret-code"></p>
           <div class="form-group">
             <label class="form-label" for="codigoConfirmar2fa">Código de 6 dígitos</label>
             <input type="text" id="codigoConfirmar2fa" class="form-input" maxlength="6" inputmode="numeric">

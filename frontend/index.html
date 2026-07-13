@@ -6,12 +6,7 @@
   <title>BarberCloud | Reservas inteligentes para barberías</title>
   <link rel="stylesheet" href="assets/css/app.css">
   <link rel="stylesheet" href="assets/css/landing.css">
-<script>
-  (function() {
-    const t = localStorage.getItem("barbercloud_theme") || (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    document.documentElement.setAttribute("data-theme", t);
-  })();
-</script>
+<script src="assets/js/theme-init.js"></script>
 </head>
 <body>
 <div class="landing-shell">
@@ -189,7 +184,7 @@
   <footer class="footer footer-columns">
     <div class="footer-col footer-col-brand">
       <div class="brand brand-uppercase">
-        <span class="brand-mark" style="width:32px;height:32px;font-size:0.8rem;">BC</span>
+        <span class="brand-mark brand-mark-sm">BC</span>
         <span>BarberCloud</span>
       </div>
       <p>Redefiniendo la industria del grooming a través de tecnología de vanguardia y una estética impecable.</p>
@@ -229,6 +224,6 @@
 
   <script src="assets/js/config.js"></script>
   <script src="assets/js/utils.js"></script>
-  <script src="assets/js/landing.js"></script>
+  <script src="assets/js/landing.js?v=20260712"></script>
 </body>
 </html>

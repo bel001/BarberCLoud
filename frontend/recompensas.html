@@ -7,9 +7,7 @@
   <link rel="stylesheet" href="assets/css/app.css">
   <link rel="stylesheet" href="assets/css/barbero-panel.css">
 
-<script>
-  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
-</script>
+<script src="assets/js/theme-init.js"></script>
 </head>
 <body>
   <div class="barber-shell">
@@ -73,12 +71,12 @@
         <p>Ganas 10 puntos por cada reserva confirmada.</p>
       </div>
 
-      <div class="barber-panel mb-4" style="max-width: 320px;">
+      <div class="barber-panel mb-4 max-w-320">
         <div class="barber-panel-header">
           <span class="material-symbols-outlined">redeem</span>
           <h3>Puntos disponibles</h3>
         </div>
-        <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="statPuntosRecompensas">0</p>
+        <p id="statPuntosRecompensas" class="text-stat font-extrabold text-accent">0</p>
       </div>
 
       <div class="barber-grid">
@@ -98,7 +96,7 @@
           <div id="historialPuntos" class="flex flex-col gap-2"></div>
         </div>
 
-        <div class="barber-panel" style="grid-column: 1 / -1;">
+        <div class="barber-panel grid-full">
           <div class="barber-panel-header">
             <span class="material-symbols-outlined">confirmation_number</span>
             <h3>Historial de canjes</h3>

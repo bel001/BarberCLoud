@@ -6,20 +6,18 @@
   <title>Validando acceso | BarberCloud</title>
   <link rel="stylesheet" href="assets/css/app.css">
 
-<script>
-  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
-</script>
+<script src="assets/js/theme-init.js"></script>
 </head>
 <body>
   <div class="auth-page">
-    <div class="auth-card" style="text-align:center;">
+    <div class="auth-card text-center">
       <a href="index.html" class="brand">
         <span class="brand-mark">BC</span>
         <span>BarberCloud</span>
       </a>
 
-      <div style="margin: 40px 0;">
-        <div class="loading-spinner" style="margin: 0 auto 24px;"></div>
+      <div class="my-10">
+        <div class="loading-spinner mx-auto mb-6"></div>
         <h2>Validando cuenta</h2>
         <p class="subtitle" id="status">Completando autenticación con Cognito...</p>
       </div>
@@ -31,16 +29,6 @@
   <script src="assets/js/config.js"></script>
   <script src="assets/js/utils.js"></script>
   <script src="assets/js/auth.js"></script>
-  <script>
-    AUTH.handleCognitoCallback().catch((error) => {
-      document.getElementById("status").textContent = "Error en autenticación";
-      document.getElementById("resultado").innerHTML = `
-        <div class="alert alert-error mt-4">
-          ${escapeHtml(error.message)}
-        </div>
-        <a href="login.html" class="btn btn-secondary mt-4">Volver al login</a>
-      `;
-    });
-  </script>
+  <script src="assets/js/callback.js"></script>
 </body>
 </html>

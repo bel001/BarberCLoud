@@ -1,15 +1,21 @@
 {
   "name": "barbercloud-backend",
   "version": "1.0.0",
+  "description": "Backend local y handlers serverless para BarberCloud",
   "type": "module",
   "private": true,
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "create-table": "node scripts/create-table.js",
     "create-demo-users": "node scripts/create-demo-users.js",
     "seed": "node scripts/seed.js",
     "dev": "node src/local-server.js",
+    "start": "node src/local-server.js",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "check": "node scripts/check-syntax.js"
   },
   "dependencies": {
     "@aws-sdk/client-cognito-identity-provider": "^3.614.0",

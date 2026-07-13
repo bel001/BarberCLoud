@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Pruebas de notificaciones: simulan SNS, SES y SQS para verificar
+// publicaciones, correos y colas sin enviar mensajes reales.
 const snsSend = vi.hoisted(() => vi.fn());
 const sesSend = vi.hoisted(() => vi.fn());
 const sqsSend = vi.hoisted(() => vi.fn());
@@ -48,24 +50,18 @@ describe("notifications", () => {
   });
 
   it("no publica reserva si no existe TOPIC_ARN", async () => {
-    // Arrange
     const { publishReservationEvent } = await importNotifications();
 
-    // Act
     await publishReservationEvent("RESERVA_CREADA", { reservaId: "res_1" });
 
-    // Assert
     expect(snsSend).not.toHaveBeenCalled();
   });
 
   it("publica evento de reserva en SNS con atributo de tipo", async () => {
-    // Arrange
     const { publishReservationEvent } = await importNotifications({ TOPIC_ARN: "arn:test:sns" });
 
-    // Act
     await publishReservationEvent("RESERVA_CREADA", { reservaId: "res_1" });
 
-    // Assert
     expect(snsSend).toHaveBeenCalledTimes(1);
     expect(snsSend.mock.calls[0][0].input).toEqual({
       TopicArn: "arn:test:sns",
@@ -80,17 +76,14 @@ describe("notifications", () => {
   });
 
   it("encola notificacion si falta remitente SES", async () => {
-    // Arrange
     const { sendReservationEmail } = await importNotifications({ NOTIFICATION_QUEUE_URL: "https://sqs.test/queue" });
 
-    // Act
     const result = await sendReservationEmail({
       to: "cliente@demo.local",
       subject: "Reserva",
       message: "Confirmada"
     });
 
-    // Assert
     expect(result).toEqual({ queued: true });
     expect(sesSend).not.toHaveBeenCalled();
     expect(sqsSend.mock.calls[0][0].input).toEqual({
@@ -105,18 +98,15 @@ describe("notifications", () => {
   });
 
   it("envia email por SES cuando hay remitente y destinatario", async () => {
-    // Arrange
     sesSend.mockResolvedValueOnce({});
     const { sendReservationEmail } = await importNotifications({ SES_SENDER_EMAIL: "no-reply@barbercloud.com" });
 
-    // Act
     const result = await sendReservationEmail({
       to: "cliente@demo.local",
       subject: "Reserva",
       message: "Confirmada"
     });
 
-    // Assert
     expect(result).toEqual({ sent: true });
     expect(sesSend.mock.calls[0][0].input).toMatchObject({
       Source: "no-reply@barbercloud.com",
@@ -125,7 +115,6 @@ describe("notifications", () => {
   });
 
   it("parsea registros desde SNS y SQS", async () => {
-    // Arrange
     const { getSnsRecords } = await importNotifications();
     const event = {
       Records: [
@@ -135,10 +124,8 @@ describe("notifications", () => {
       ]
     };
 
-    // Act
     const records = getSnsRecords(event);
 
-    // Assert
     expect(records).toEqual([
       { eventType: "SNS" },
       { eventType: "SQS" },
@@ -147,29 +134,22 @@ describe("notifications", () => {
   });
 
   it("devuelve lista vacia cuando no hay registros SNS o SQS", async () => {
-    // Arrange
     const { getSnsRecords } = await importNotifications();
 
-    // Act
     const records = getSnsRecords({});
 
-    // Assert
     expect(records).toEqual([]);
   });
 
   it("ignora encolado cuando no existe URL de cola", async () => {
-    // Arrange
     const { enqueueNotification } = await importNotifications();
 
-    // Act
     await enqueueNotification({ to: "cliente@demo.local" });
 
-    // Assert
     expect(sqsSend).not.toHaveBeenCalled();
   });
 
   it("encola notificacion cuando SES falla", async () => {
-    // Arrange
     sesSend.mockRejectedValueOnce(new Error("SES connection timeout"));
     sqsSend.mockResolvedValueOnce({});
     const { sendReservationEmail } = await importNotifications({
@@ -177,14 +157,12 @@ describe("notifications", () => {
       NOTIFICATION_QUEUE_URL: "https://sqs.test/queue"
     });
 
-    // Act
     const result = await sendReservationEmail({
       to: "cliente@demo.local",
       subject: "Reserva",
       message: "Confirmada"
     });
 
-    // Assert
     expect(result).toEqual({ queued: true });
     expect(sqsSend).toHaveBeenCalled();
     expect(sqsSend.mock.calls[0][0].input.MessageBody).toContain("SES connection timeout");

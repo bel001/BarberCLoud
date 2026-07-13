@@ -19,7 +19,7 @@ function estadoLabel(estado) {
 function estadoAcciones(cita, barberoId) {
   if (cita.estado === "CONFIRMADA") {
     return `
-      <div class="list-item-actions" style="margin-top:10px;">
+      <div class="list-item-actions list-item-actions-spaced">
         <button class="btn btn-secondary btn-sm" type="button" data-reserva-id="${escapeHtml(cita.reservaId)}" data-barbero-id="${escapeHtml(barberoId)}" data-cambiar-estado="EN_PROCESO">Iniciar</button>
         <button class="btn btn-secondary btn-sm" type="button" data-reserva-id="${escapeHtml(cita.reservaId)}" data-barbero-id="${escapeHtml(barberoId)}" data-cambiar-estado="CANCELADA">Cancelar</button>
       </div>
@@ -28,7 +28,7 @@ function estadoAcciones(cita, barberoId) {
 
   if (cita.estado === "EN_PROCESO") {
     return `
-      <div class="list-item-actions" style="margin-top:10px;">
+      <div class="list-item-actions list-item-actions-spaced">
         <button class="btn btn-primary btn-sm" type="button" data-reserva-id="${escapeHtml(cita.reservaId)}" data-barbero-id="${escapeHtml(barberoId)}" data-cambiar-estado="FINALIZADO">Finalizar</button>
       </div>
     `;
@@ -76,8 +76,8 @@ async function cargarAgendaAdmin() {
           </div>
           <div class="flex flex-col gap-2">
             ${citasBarbero.map(cita => `
-              <div class="list-item" style="flex-direction:column; align-items:stretch;">
-                <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+              <div class="list-item stacked-list-item">
+                <div class="appointment-summary">
                   <div class="list-item-info">
                     <div class="list-item-title">${escapeHtml(cita.clienteNombre)}</div>
                     <div class="list-item-subtitle">📅 ${escapeHtml(cita.fecha)} • ⏰ ${escapeHtml(cita.hora)} • ${escapeHtml(cita.servicioNombre || cita.servicioId)}</div>

@@ -7,9 +7,7 @@
   <link rel="stylesheet" href="assets/css/app.css">
   <link rel="stylesheet" href="assets/css/barbero-panel.css">
 
-<script>
-  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
-</script>
+<script src="assets/js/theme-init.js"></script>
 </head>
 <body>
   <div class="barber-shell">
@@ -76,7 +74,7 @@
     </aside>
 
     <main class="barber-main">
-      <div class="barber-topbar" style="display:flex; justify-content:space-between; align-items:center;">
+      <div class="barber-topbar flex items-center justify-between">
         <div>
           <h2>Dashboard Financiero</h2>
           <p>Ingresos, costos y ganancias por barbero.</p>
@@ -87,47 +85,47 @@
         </button>
       </div>
 
-      <div class="barber-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 24px;">
+      <div class="barber-grid barber-grid-4 mb-6">
         <div class="barber-panel">
           <div class="barber-panel-header">
             <span class="material-symbols-outlined">payments</span>
             <h3>Ingresos estimados</h3>
           </div>
-          <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="statIngresosEstimados">S/ 0</p>
+          <p id="statIngresosEstimados" class="text-stat font-extrabold text-accent">S/ 0</p>
         </div>
         <div class="barber-panel">
           <div class="barber-panel-header">
             <span class="material-symbols-outlined">inventory_2</span>
             <h3>Costos insumos</h3>
           </div>
-          <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="statCostos">S/ 0</p>
+          <p id="statCostos" class="text-stat font-extrabold text-accent">S/ 0</p>
         </div>
         <div class="barber-panel">
           <div class="barber-panel-header">
             <span class="material-symbols-outlined">savings</span>
             <h3>Ingresos netos</h3>
           </div>
-          <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="statNetos">S/ 0</p>
+          <p id="statNetos" class="text-stat font-extrabold text-accent">S/ 0</p>
         </div>
         <div class="barber-panel">
           <div class="barber-panel-header">
             <span class="material-symbols-outlined">warehouse</span>
             <h3>Valor inventario</h3>
           </div>
-          <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="statInventario">S/ 0</p>
+          <p id="statInventario" class="text-stat font-extrabold text-accent">S/ 0</p>
         </div>
       </div>
 
       <div class="barber-grid">
-        <div class="barber-panel" style="grid-column: 1 / -1;">
+        <div class="barber-panel grid-full">
           <div class="barber-panel-header">
             <span class="material-symbols-outlined">bar_chart</span>
             <h3>Ingresos por mes</h3>
           </div>
-          <div id="graficoIngresosMes" class="flex" style="align-items:flex-end; gap:16px; height:180px; padding-top:16px;"></div>
+          <div id="graficoIngresosMes" class="flex chart-layout"></div>
         </div>
 
-        <div class="barber-panel" style="grid-column: 1 / -1;">
+        <div class="barber-panel grid-full">
           <div class="barber-panel-header">
             <span class="material-symbols-outlined">group</span>
             <h3>Ganancias por barbero</h3>

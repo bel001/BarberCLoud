@@ -7,9 +7,7 @@
   <link rel="stylesheet" href="assets/css/app.css">
   <link rel="stylesheet" href="assets/css/barbero-panel.css">
 
-<script>
-  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
-</script>
+<script src="assets/js/theme-init.js"></script>
 </head>
 <body>
   <div class="barber-shell">
@@ -65,14 +63,14 @@
         <p>Tu actividad y desempeño de hoy.</p>
       </div>
 
-      <div class="barber-grid" style="grid-template-columns: repeat(3, 1fr); margin-bottom: 24px;">
+      <div class="barber-grid barber-grid-3 mb-6">
         <div class="barber-panel">
           <div class="barber-panel-header">
             <span class="material-symbols-outlined">payments</span>
             <h3>Ganancias</h3>
           </div>
-          <p style="font-size:1.6rem; font-weight:800; color: var(--accent);" id="statGanancias">S/ 0</p>
-          <p class="text-muted" style="font-size:0.8rem;">De citas finalizadas</p>
+          <p id="statGanancias" class="text-stat font-extrabold text-accent">S/ 0</p>
+          <p class="text-muted text-xs">De citas finalizadas</p>
         </div>
 
         <div class="barber-panel">
@@ -80,7 +78,7 @@
             <span class="material-symbols-outlined">content_cut</span>
             <h3>Servicio popular</h3>
           </div>
-          <p style="font-size:1.2rem; font-weight:700;" id="statServicioPopular">Sin datos</p>
+          <p id="statServicioPopular" class="text-xl font-bold">Sin datos</p>
         </div>
 
         <div class="barber-panel">
@@ -88,7 +86,7 @@
             <span class="material-symbols-outlined">toggle_on</span>
             <h3>Estado del turno</h3>
           </div>
-          <button class="btn btn-primary" id="btnToggleTurno" type="button" style="width:100%;">Cargando...</button>
+          <button class="btn btn-primary w-full" id="btnToggleTurno" type="button">Cargando...</button>
         </div>
       </div>
 

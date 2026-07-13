@@ -7,9 +7,7 @@
   <link rel="stylesheet" href="assets/css/app.css">
   <link rel="stylesheet" href="assets/css/barbero-panel.css">
 
-<script>
-  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
-</script>
+<script src="assets/js/theme-init.js"></script>
 </head>
 <body>
   <div class="barber-shell">
@@ -82,7 +80,7 @@
       </div>
 
       <div class="barber-grid">
-        <div class="barber-panel" style="grid-column: 1 / -1;">
+        <div class="barber-panel grid-full">
           <div class="barber-panel-header">
             <span class="material-symbols-outlined">policy</span>
             <h3>Políticas y comisiones</h3>
@@ -112,7 +110,7 @@
                 <input type="number" id="anticipacionMaximaDias" class="form-input" min="0" step="1" required>
               </div>
             </div>
-            <button class="btn btn-primary" type="submit" style="align-self: flex-start;">Guardar configuración</button>
+            <button class="btn btn-primary self-start" type="submit">Guardar configuración</button>
           </form>
         </div>
 

@@ -6,6 +6,15 @@ const wizard = {
   seleccion: { servicioId: null, barberoId: null, fecha: null, hora: null }
 };
 
+function fechaLocalHoy() {
+  const fecha = new Date();
+  const year = fecha.getFullYear();
+  const month = String(fecha.getMonth() + 1).padStart(2, "0");
+  const day = String(fecha.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 function actualizarNavSegunSesion() {
   const session = AUTH.getSession();
   const estaLogueado = Boolean(session);
@@ -126,7 +135,8 @@ async function cargarDisponibilidadParaFecha(fecha) {
 
 async function cargarDisponibilidadPublica() {
   try {
-    const data = await API.get("/disponibilidad");
+    const fecha = fechaLocalHoy();
+    const data = await API.get(`/disponibilidad?fecha=${encodeURIComponent(fecha)}`);
 
     wizard.servicios = data.servicios;
     wizard.barberos = data.barberos;
@@ -136,8 +146,8 @@ async function cargarDisponibilidadPublica() {
     renderBarberos();
 
     const fechaEl = document.getElementById("fecha");
-    fechaEl.valueAsDate = new Date();
-    fechaEl.min = new Date().toISOString().slice(0, 10);
+    fechaEl.value = data.fecha || fecha;
+    fechaEl.min = fecha;
 
     renderHoras();
   } catch (error) {
@@ -184,6 +194,11 @@ async function confirmarReserva() {
       fecha: document.getElementById("fecha").value,
       hora: wizard.seleccion.hora
     };
+
+    if (!reservaPendiente.hora) {
+      Toast.show("No hay horarios disponibles para ese barbero y fecha", "warning");
+      return;
+    }
 
     localStorage.setItem("reserva_pendiente", JSON.stringify(reservaPendiente));
 

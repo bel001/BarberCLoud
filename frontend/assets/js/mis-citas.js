@@ -43,8 +43,8 @@ function renderLista() {
     const puedeGestionar = item.estado === "CONFIRMADA" && esFutura(item);
 
     return `
-      <div class="list-item" style="flex-direction:column; align-items:stretch;">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+      <div class="list-item stacked-list-item">
+        <div class="appointment-summary">
           <div class="list-item-info">
             <div class="list-item-title">
               ${escapeHtml(item.servicioNombre || item.servicioId)}
@@ -56,8 +56,8 @@ function renderLista() {
           </div>
           ${puedeGestionar ? `
             <div class="list-item-actions">
-              <button class="btn btn-secondary btn-sm" type="button" onclick="toggleReprogramar('${escapeHtml(item.reservaId)}')">Reprogramar</button>
-              <button class="btn btn-secondary btn-sm" type="button" onclick="cancelarReserva('${escapeHtml(item.reservaId)}')">Cancelar</button>
+              <button class="btn btn-secondary btn-sm" type="button" data-cita-action="reprogramar" data-reserva-id="${escapeHtml(item.reservaId)}">Reprogramar</button>
+              <button class="btn btn-secondary btn-sm" type="button" data-cita-action="cancelar" data-reserva-id="${escapeHtml(item.reservaId)}">Cancelar</button>
             </div>
           ` : ''}
         </div>
@@ -71,7 +71,7 @@ function renderLista() {
               <label class="form-label">Nueva hora</label>
               <select class="form-input" id="hora-${escapeHtml(item.reservaId)}"></select>
             </div>
-            <button class="btn btn-primary btn-sm" type="button" onclick="confirmarReprogramar('${escapeHtml(item.reservaId)}', '${escapeHtml(item.barberoId || "")}')">Guardar</button>
+            <button class="btn btn-primary btn-sm" type="button" data-cita-action="guardar" data-reserva-id="${escapeHtml(item.reservaId)}">Guardar</button>
           </div>
         ` : ''}
       </div>
@@ -165,5 +165,17 @@ document.addEventListener("DOMContentLoaded", () => {
       filtroActivo = btn.dataset.filtro;
       renderLista();
     });
+  });
+
+  document.getElementById("listaCitas").addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-cita-action]");
+    if (!button) return;
+
+    const actions = {
+      reprogramar: toggleReprogramar,
+      cancelar: cancelarReserva,
+      guardar: confirmarReprogramar
+    };
+    await actions[button.dataset.citaAction]?.(button.dataset.reservaId);
   });
 });

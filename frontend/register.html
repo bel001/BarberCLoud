@@ -7,9 +7,7 @@
   <link rel="stylesheet" href="assets/css/app.css">
   <link rel="stylesheet" href="assets/css/barbero-panel.css">
 
-<script>
-  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
-</script>
+<script src="assets/js/theme-init.js"></script>
 </head>
 <body>
   <div class="auth-page barber-theme">
@@ -63,7 +61,7 @@
         ¿Ya tienes cuenta? <a href="login.html">Inicia sesión</a>
       </p>
 
-      <button class="theme-toggle" title="Cambiar tema" style="margin: 24px auto 0;">
+      <button class="theme-toggle auth-theme-toggle" title="Cambiar tema">
         <svg class="icon-sun hidden" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="5"/>
           <line x1="12" y1="1" x2="12" y2="3"/>

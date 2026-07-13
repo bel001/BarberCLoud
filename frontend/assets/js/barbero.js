@@ -15,7 +15,7 @@ async function cargarAgenda() {
     if (citas.length === 0) {
       container.innerHTML = `
         <div class="empty-state">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="width:48px;height:48px;margin:0 auto 12px;">
+          <svg class="empty-state-icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
             <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
             <line x1="16" y1="2" x2="16" y2="6"/>
             <line x1="8" y1="2" x2="8" y2="6"/>
@@ -28,8 +28,8 @@ async function cargarAgenda() {
     }
 
     container.innerHTML = citas.map(cita => `
-      <div class="appt-card" style="flex-direction:column; align-items:stretch;">
-        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px;">
+      <div class="appt-card stacked-list-item">
+        <div class="appointment-summary">
           <div class="list-item-info">
             <div class="list-item-title">${escapeHtml(cita.clienteNombre)}</div>
             <div class="list-item-subtitle">
@@ -63,7 +63,7 @@ function estadoLabel(estado) {
 function estadoAcciones(cita) {
   if (cita.estado === "CONFIRMADA") {
     return `
-      <div class="list-item-actions" style="margin-top:10px;">
+      <div class="list-item-actions list-item-actions-spaced">
         <button class="btn btn-secondary btn-sm" type="button" data-reserva-id="${escapeHtml(cita.reservaId)}" data-cambiar-estado="EN_PROCESO">Iniciar</button>
         <button class="btn btn-secondary btn-sm" type="button" data-reserva-id="${escapeHtml(cita.reservaId)}" data-cambiar-estado="CANCELADA">Cancelar</button>
       </div>
@@ -72,7 +72,7 @@ function estadoAcciones(cita) {
 
   if (cita.estado === "EN_PROCESO") {
     return `
-      <div class="list-item-actions" style="margin-top:10px;">
+      <div class="list-item-actions list-item-actions-spaced">
         <button class="btn btn-primary btn-sm" type="button" data-reserva-id="${escapeHtml(cita.reservaId)}" data-cambiar-estado="FINALIZADO">Finalizar</button>
       </div>
     `;

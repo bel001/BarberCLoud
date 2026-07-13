@@ -7,9 +7,7 @@
   <link rel="stylesheet" href="assets/css/app.css">
   <link rel="stylesheet" href="assets/css/barbero-panel.css">
 
-<script>
-  (function(){var t=localStorage.getItem("barbercloud_theme")||(window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light");document.documentElement.setAttribute("data-theme",t);})();
-</script>
+<script src="assets/js/theme-init.js"></script>
 </head>
 <body>
   <div class="barber-shell">
@@ -82,7 +80,7 @@
       </div>
 
       <div class="barber-grid">
-        <div class="barber-panel" style="grid-column: 1 / -1;">
+        <div class="barber-panel grid-full">
           <div class="barber-panel-header">
             <span class="material-symbols-outlined">group</span>
             <h3>Personal registrado</h3>
@@ -90,7 +88,7 @@
           <div id="listaPersonal" class="flex flex-col gap-2"></div>
         </div>
 
-        <div class="barber-panel" style="grid-column: 1 / -1;">
+        <div class="barber-panel grid-full">
           <div class="barber-panel-header">
             <span class="material-symbols-outlined">person_add</span>
             <h3>Crear usuario interno</h3>

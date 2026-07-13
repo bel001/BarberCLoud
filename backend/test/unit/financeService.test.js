@@ -8,68 +8,57 @@ import {
   createFinanceService
 } from "../../src/services/financeService.js";
 
+// Pruebas financieras: validan conteos, ingresos estimados
+// y exclusion de reservas canceladas o copias de agenda.
 describe("buildFinancialReport", () => {
   it("calcula total de reservas activas", () => {
-    // Arrange
     const reservas = [
       { pk: "CLIENTE#1", estado: "CONFIRMADA", origen: "ONLINE", precio: 30 },
       { pk: "CLIENTE#2", estado: "CONFIRMADA", origen: "PRESENCIAL", precio: 20 },
       { pk: "CLIENTE#3", estado: "CANCELADA", origen: "ONLINE", precio: 45 }
     ];
 
-    // Act
     const report = buildFinancialReport(reservas);
 
-    // Assert
     expect(report.totalReservas).toBe(2);
   });
 
   it("separa reservas online y presenciales", () => {
-    // Arrange
     const reservas = [
       { pk: "CLIENTE#1", estado: "CONFIRMADA", origen: "ONLINE", precio: 30 },
       { pk: "CLIENTE#2", estado: "CONFIRMADA", origen: "PRESENCIAL", precio: 20 },
       { pk: "CLIENTE#3", estado: "CONFIRMADA", origen: "PRESENCIAL", precio: 45 }
     ];
 
-    // Act
     const report = buildFinancialReport(reservas);
 
-    // Assert
     expect(report.online).toBe(1);
     expect(report.presenciales).toBe(2);
   });
 
   it("suma ingresos estimados ignorando canceladas y copias de agenda", () => {
-    // Arrange
     const reservas = [
       { pk: "CLIENTE#1", estado: "CONFIRMADA", origen: "ONLINE", precio: 30 },
       { pk: "CLIENTE#2", estado: "CANCELADA", origen: "PRESENCIAL", precio: 20 },
       { pk: "BARBERO#1", estado: "CONFIRMADA", origen: "ONLINE", precio: 30 }
     ];
 
-    // Act
     const report = buildFinancialReport(reservas);
 
-    // Assert
     expect(report.ingresosEstimados).toBe(30);
   });
 
   it("suma cero cuando una reserva activa no tiene precio", () => {
-    // Arrange
     const reservas = [
       { pk: "CLIENTE#1", estado: "CONFIRMADA", origen: "ONLINE" }
     ];
 
-    // Act
     const report = buildFinancialReport(reservas);
 
-    // Assert
     expect(report.ingresosEstimados).toBe(0);
   });
 
   it("obtiene reporte desde repositorio inyectado", async () => {
-    // Arrange
     const repository = {
       scanReservas: vi.fn().mockResolvedValue([
         { pk: "CLIENTE#1", estado: "CONFIRMADA", origen: "ONLINE", precio: 30 }
@@ -77,10 +66,8 @@ describe("buildFinancialReport", () => {
     };
     const service = createFinanceService({ repository });
 
-    // Act
     const report = await service.getReport();
 
-    // Assert
     expect(repository.scanReservas).toHaveBeenCalledTimes(1);
     expect(report).toEqual({
       totalReservas: 1,
@@ -91,7 +78,6 @@ describe("buildFinancialReport", () => {
   });
 
   it("agrupa ingresos por mes ignorando canceladas y copias de barbero", () => {
-    // Arrange
     const reservas = [
       { pk: "CLIENTE#1", estado: "CONFIRMADA", fecha: "2026-06-15", precio: 30 },
       { pk: "CLIENTE#2", estado: "CONFIRMADA", fecha: "2026-06-20", precio: 20 },
@@ -100,10 +86,8 @@ describe("buildFinancialReport", () => {
       { pk: "BARBERO#1", estado: "CONFIRMADA", fecha: "2026-07-01", precio: 45 }
     ];
 
-    // Act
     const resultado = buildIngresosPorMes(reservas);
 
-    // Assert
     expect(resultado).toEqual([
       { mes: "2026-06", ingresos: 50 },
       { mes: "2026-07", ingresos: 45 }
@@ -111,7 +95,6 @@ describe("buildFinancialReport", () => {
   });
 
   it("agrupa ganancias por barbero desde las copias BARBERO#", () => {
-    // Arrange
     const reservas = [
       { pk: "BARBERO#barbero_carlos", barberoId: "barbero_carlos", estado: "CONFIRMADA", precio: 30 },
       { pk: "BARBERO#barbero_carlos", barberoId: "barbero_carlos", estado: "FINALIZADO", precio: 45 },
@@ -120,10 +103,8 @@ describe("buildFinancialReport", () => {
       { pk: "CLIENTE#1", estado: "CONFIRMADA", precio: 30 }
     ];
 
-    // Act
     const resultado = buildGananciasPorBarbero(reservas);
 
-    // Assert
     expect(resultado).toEqual([
       { barberoId: "barbero_ana", ganancias: 20 },
       { barberoId: "barbero_carlos", ganancias: 75 }
@@ -131,36 +112,29 @@ describe("buildFinancialReport", () => {
   });
 
   it("calcula el valor total del inventario", () => {
-    // Arrange
     const inventario = [
       { stock: 10, precio: 5 },
       { stock: 4, precio: 25 }
     ];
 
-    // Act
     const valor = buildValorInventario(inventario);
 
-    // Assert
     expect(valor).toBe(150);
   });
 
   it("calcula costos de insumos solo cuando hay precio de catalogo", () => {
-    // Arrange
     const insumos = [
       { insumoId: "cera", cantidad: 2 },
       { insumoId: "gel-sin-catalogo", cantidad: 5 }
     ];
     const inventario = [{ productoId: "cera", precio: 25 }];
 
-    // Act
     const costos = buildCostosInsumos(insumos, inventario);
 
-    // Assert
     expect(costos).toBe(50);
   });
 
   it("arma el dashboard financiero completo desde el repositorio", async () => {
-    // Arrange
     const repository = {
       scanReservas: vi.fn().mockResolvedValue([
         { pk: "CLIENTE#1", estado: "CONFIRMADA", origen: "ONLINE", fecha: "2026-07-01", precio: 30 },
@@ -174,10 +148,8 @@ describe("buildFinancialReport", () => {
     };
     const service = createFinanceService({ repository });
 
-    // Act
     const dashboard = await service.getDashboard();
 
-    // Assert
     expect(dashboard.ingresosEstimados).toBe(30);
     expect(dashboard.ingresosPorMes).toEqual([{ mes: "2026-07", ingresos: 30 }]);
     expect(dashboard.gananciasPorBarbero).toEqual([{ barberoId: "barbero_carlos", ganancias: 30 }]);

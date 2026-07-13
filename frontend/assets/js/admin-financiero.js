@@ -57,7 +57,7 @@ function renderGananciasBarbero(ganancias) {
         <div class="list-item-info">
           <div class="list-item-title">${escapeHtml(item.barberoId)}</div>
         </div>
-        <span class="stat-value" style="font-size:1.1rem;">S/ ${item.ganancias}</span>
+        <span class="stat-value text-lg">S/ ${item.ganancias}</span>
       </div>
     `).join("")
     : `<p class="text-muted text-sm">Aún no hay ganancias registradas.</p>`;

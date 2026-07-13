@@ -126,12 +126,20 @@
   justify-content: flex-end;
   position: relative;
   background:
-    linear-gradient(180deg, transparent 35%, rgba(0,0,0,0.85) 100%),
+    linear-gradient(180deg, transparent 20%, rgba(0,0,0,0.96) 100%),
     url('../img/BARBER.jpg');
   background-size: cover;
   background-position: center 30%;
   overflow: hidden;
 }
+
+.card-photo h3,
+.card-photo p {
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+}
+
+.landing-shell > .section:first-of-type { padding-top: 152px; }
 
 .card-badge {
   position: absolute;
@@ -155,6 +163,7 @@
   .bento-grid { grid-template-columns: 1fr; }
   .bento-grid .card:first-child { grid-column: span 1; }
   .section-header-split { flex-direction: column; align-items: flex-start; }
+  .landing-shell > .section:first-of-type { padding-top: 132px; }
 }
 
 /* ==================== SERVICE PRICE CARDS ==================== */

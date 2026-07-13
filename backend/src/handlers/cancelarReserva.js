@@ -3,7 +3,7 @@ import { requireRole } from "../lib/auth.js";
 import * as repository from "../lib/dynamodb.js";
 import { audit } from "../lib/audit.js";
 import { publishReservationEvent } from "../lib/notifications.js";
-import { ok, badRequest, serverError } from "../lib/response.js";
+import { ok, serverError } from "../lib/response.js";
 import { ServiceError } from "../services/errors.js";
 import { createReservationService } from "../services/reservationService.js";
 
@@ -24,7 +24,7 @@ export function createCancelarReservaHandler(service) {
       return ok(await service.cancelReservation(event));
     } catch (error) {
       if (error instanceof ServiceError) {
-        return badRequest(error.message);
+        return serverError(error);
       }
 
       return serverError(error);
