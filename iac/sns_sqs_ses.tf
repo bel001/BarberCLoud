@@ -1,15 +1,24 @@
 resource "aws_sns_topic" "reservation_created" {
-  name = "${local.prefix}-reservation-created"
+  name              = "${local.prefix}-reservation-created"
+  kms_master_key_id = "alias/aws/sns"
 }
 
 resource "aws_sns_topic" "reservation_cancelled" {
-  name = "${local.prefix}-reservation-cancelled"
+  name              = "${local.prefix}-reservation-cancelled"
+  kms_master_key_id = "alias/aws/sns"
 }
 
 resource "aws_sqs_queue" "notification_retry" {
   name                       = "${local.prefix}-notification-retry"
   visibility_timeout_seconds = 60
   message_retention_seconds  = 345600
+  kms_master_key_id          = aws_kms_key.application.arn
+}
+
+resource "aws_sqs_queue" "lambda_dlq" {
+  name                      = "${local.prefix}-lambda-dlq"
+  message_retention_seconds = 1209600
+  kms_master_key_id         = aws_kms_key.application.arn
 }
 
 resource "aws_sns_topic_subscription" "created_lambda" {

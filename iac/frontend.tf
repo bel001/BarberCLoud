@@ -15,6 +15,9 @@ locals {
 }
 
 resource "aws_s3_bucket" "frontend" {
+  #checkov:skip=CKV_AWS_18:El bucket es privado y solo CloudFront OAC puede leerlo; no se mantiene un segundo bucket de logs en este entorno de bajo costo.
+  #checkov:skip=CKV_AWS_144:El frontend se reconstruye desde Git y CloudFront; la replicación entre regiones no forma parte del alcance de recuperación de este entorno.
+  #checkov:skip=CKV2_AWS_62:Los objetos estáticos no tienen consumidores de eventos S3 dentro de la lógica de negocio.
   bucket_prefix = "${local.prefix}-frontend-"
 }
 
@@ -31,9 +34,31 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
   bucket = aws_s3_bucket.frontend.id
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
+      sse_algorithm     = "aws:kms"
+      kms_master_key_id = "alias/aws/s3"
     }
   }
+}
+
+resource "aws_s3_bucket_lifecycle_configuration" "frontend" {
+  bucket = aws_s3_bucket.frontend.id
+
+  rule {
+    id     = "frontend-maintenance"
+    status = "Enabled"
+
+    filter {}
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 7
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = 30
+    }
+  }
+
+  depends_on = [aws_s3_bucket_versioning.frontend]
 }
 
 resource "aws_s3_bucket_versioning" "frontend" {
@@ -51,7 +76,47 @@ resource "aws_cloudfront_origin_access_control" "frontend" {
   signing_protocol                  = "sigv4"
 }
 
+resource "aws_cloudfront_response_headers_policy" "frontend_security" {
+  name = "${local.prefix}-frontend-security"
+
+  security_headers_config {
+    content_type_options {
+      override = true
+    }
+
+    frame_options {
+      frame_option = "DENY"
+      override     = true
+    }
+
+    referrer_policy {
+      referrer_policy = "strict-origin-when-cross-origin"
+      override        = true
+    }
+
+    strict_transport_security {
+      access_control_max_age_sec = 63072000
+      include_subdomains         = true
+      preload                    = true
+      override                   = true
+    }
+
+    xss_protection {
+      protection = true
+      mode_block = true
+      override   = true
+    }
+  }
+}
+
 resource "aws_cloudfront_distribution" "frontend" {
+  #checkov:skip=CKV_AWS_68:WAF se habilitará al publicar un dominio de producción; este entorno académico de bajo costo solo sirve contenido estático privado mediante OAC.
+  #checkov:skip=CKV_AWS_86:El registro de acceso de CloudFront se incorporará con un bucket central de auditoría en producción; CloudWatch y las métricas nativas cubren este entorno.
+  #checkov:skip=CKV_AWS_374:La barbería no restringe clientes por país; el acceso mundial es un requisito funcional intencional.
+  #checkov:skip=CKV_AWS_310:El frontend se reconstruye desde Git y usa un único origen S3; un segundo origen regional queda fuera del alcance y costo actual.
+  #checkov:skip=CKV_AWS_174:Se utiliza el certificado y dominio predeterminados de CloudFront; la política TLS personalizada se configurará junto con un dominio y certificado ACM propios.
+  #checkov:skip=CKV2_AWS_42:Se usa el dominio HTTPS asignado por CloudFront; no existe todavía un dominio propio ni un certificado ACM.
+  #checkov:skip=CKV2_AWS_47:La distribución entrega únicamente HTML, CSS, JavaScript e imágenes; no ejecuta Log4j y no se incorpora WAF en este entorno de bajo costo.
   enabled             = true
   default_root_object = "index.html"
   price_class         = "PriceClass_100"
@@ -63,11 +128,12 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 
   default_cache_behavior {
-    allowed_methods        = ["GET", "HEAD", "OPTIONS"]
-    cached_methods         = ["GET", "HEAD"]
-    target_origin_id       = "frontend-s3"
-    viewer_protocol_policy = "redirect-to-https"
-    compress               = true
+    allowed_methods            = ["GET", "HEAD", "OPTIONS"]
+    cached_methods             = ["GET", "HEAD"]
+    target_origin_id           = "frontend-s3"
+    viewer_protocol_policy     = "redirect-to-https"
+    compress                   = true
+    response_headers_policy_id = aws_cloudfront_response_headers_policy.frontend_security.id
 
     forwarded_values {
       query_string = false

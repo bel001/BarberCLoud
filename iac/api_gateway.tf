@@ -139,21 +139,38 @@ resource "aws_apigatewayv2_integration" "routes" {
   payload_format_version = "2.0"
 }
 
-resource "aws_apigatewayv2_route" "routes" {
-  for_each = local.api_routes
+resource "aws_apigatewayv2_route" "private_routes" {
+  for_each = {
+    for key, route in local.api_routes :
+    key => route if !route.public
+  }
 
   api_id    = aws_apigatewayv2_api.apis[each.value.api_key].id
   route_key = each.value.route_key
   target    = "integrations/${aws_apigatewayv2_integration.routes[each.key].id}"
 
-  authorization_type = each.value.public ? "NONE" : "JWT"
-  authorizer_id      = each.value.public ? null : aws_apigatewayv2_authorizer.jwt[each.value.api_key].id
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.jwt[each.value.api_key].id
+}
+
+resource "aws_apigatewayv2_route" "public_routes" {
+  # checkov:skip=CKV_AWS_309:El catálogo, los barberos, el negocio y la disponibilidad son consultas públicas de solo lectura.
+  for_each = {
+    for key, route in local.api_routes :
+    key => route if route.public
+  }
+
+  api_id             = aws_apigatewayv2_api.apis[each.value.api_key].id
+  route_key          = each.value.route_key
+  target             = "integrations/${aws_apigatewayv2_integration.routes[each.key].id}"
+  authorization_type = "NONE"
 }
 
 resource "aws_cloudwatch_log_group" "api_gateway" {
   for_each          = local.apis
   name              = "/aws/apigateway/${local.prefix}-${each.key}"
-  retention_in_days = 30
+  retention_in_days = 365
+  kms_key_id        = aws_kms_key.cloudwatch_logs.arn
 }
 
 resource "aws_apigatewayv2_stage" "default" {

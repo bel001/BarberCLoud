@@ -36,6 +36,7 @@ resource "aws_dynamodb_table" "main" {
   }
 
   server_side_encryption {
-    enabled = true
+    enabled     = true
+    kms_key_arn = aws_kms_key.application.arn
   }
 }

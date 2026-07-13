@@ -6,3 +6,6 @@ iac/terraform.tfstate.backup
 backend/node_modules/
 backend/dist/
 backend/coverage/
+
+# Archivos de instrucciones locales
+/frontend/CLAUDE.md

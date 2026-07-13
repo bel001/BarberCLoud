@@ -1,19 +1,22 @@
 resource "aws_ssm_parameter" "table_name" {
-  name  = "/${local.prefix}/table-name"
-  type  = "String"
-  value = aws_dynamodb_table.main.name
+  name   = "/${local.prefix}/table-name"
+  type   = "SecureString"
+  key_id = aws_kms_key.application.arn
+  value  = aws_dynamodb_table.main.name
 }
 
 resource "aws_ssm_parameter" "reservation_topic" {
-  name  = "/${local.prefix}/reservation-topic-arn"
-  type  = "String"
-  value = aws_sns_topic.reservation_created.arn
+  name   = "/${local.prefix}/reservation-topic-arn"
+  type   = "SecureString"
+  key_id = aws_kms_key.application.arn
+  value  = aws_sns_topic.reservation_created.arn
 }
 
 resource "aws_ssm_parameter" "cancellation_topic" {
-  name  = "/${local.prefix}/cancellation-topic-arn"
-  type  = "String"
-  value = aws_sns_topic.reservation_cancelled.arn
+  name   = "/${local.prefix}/cancellation-topic-arn"
+  type   = "SecureString"
+  key_id = aws_kms_key.application.arn
+  value  = aws_sns_topic.reservation_cancelled.arn
 }
 
 resource "aws_cloudwatch_metric_alarm" "lambda_errors" {
