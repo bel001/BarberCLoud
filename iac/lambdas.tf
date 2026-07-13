@@ -10,7 +10,7 @@ resource "aws_lambda_function" "functions" {
 
   function_name    = "${local.prefix}-${replace(each.key, "_", "-")}"
   role             = aws_iam_role.lambda.arn
-  runtime          = "nodejs20.x"
+  runtime          = "nodejs24.x"
   handler          = each.value
   filename         = data.archive_file.backend.output_path
   source_code_hash = data.archive_file.backend.output_base64sha256
@@ -40,7 +40,7 @@ resource "aws_cloudwatch_log_group" "lambda" {
 resource "aws_lambda_function" "post_confirm_client" {
   function_name    = "${local.prefix}-post-confirm-client"
   role             = aws_iam_role.lambda.arn
-  runtime          = "nodejs20.x"
+  runtime          = "nodejs24.x"
   handler          = "src/handlers/postConfirmCliente.handler"
   filename         = data.archive_file.backend.output_path
   source_code_hash = data.archive_file.backend.output_base64sha256
