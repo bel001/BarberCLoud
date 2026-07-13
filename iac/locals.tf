@@ -51,7 +51,10 @@ locals {
     ico  = "image/x-icon"
   }
 
-  frontend_files = setsubtract(fileset("${path.module}/../frontend", "**"), ["assets/js/config.js"])
+  frontend_files = setsubtract(
+    fileset("${path.module}/../frontend", "**"),
+    ["assets/js/config.js", "nginx.conf"]
+  )
 }
 
 resource "random_id" "suffix" {
