@@ -67,3 +67,65 @@ jobs:
           directory: iac
           quiet: true
           framework: terraform
+
+  observability:
+    name: Ansible y observabilidad
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar codigo
+        uses: actions/checkout@v5
+
+      - name: Configurar Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+
+      - name: Instalar Ansible
+        run: |
+          python -m pip install             ansible-core==2.20.7             ansible-lint==26.6.0
+
+          ansible-galaxy collection install             -r ansible/requirements.yml
+
+      - name: Validar Ansible
+        env:
+          ANSIBLE_CONFIG: ${{ github.workspace }}/ansible/ansible.cfg
+        run: |
+          ansible-playbook             ansible/playbooks/desplegar-observabilidad.yml             --syntax-check
+
+          ansible-lint --profile basic ansible
+
+      - name: Validar sincronizacion de rutas
+        run: node scripts/check-route-sync.mjs
+
+      - name: Preparar variables de ejemplo
+        run: |
+          cp .env.monitoring.example .env.monitoring
+
+          sed -i             's/GENERAR_LOCALMENTE_CON_ANSIBLE/BarberCloudCI2026/g'             .env.monitoring
+
+      - name: Validar Docker Compose
+        run: |
+          docker compose             --env-file .env.monitoring             -f docker-compose.yml             -f docker-compose.monitoring.yml             config >/dev/null
+
+      - name: Validar Prometheus
+        run: |
+          docker run --rm             -v "$PWD/monitoring/prometheus:/etc/prometheus:ro"             --entrypoint /bin/promtool             prom/prometheus:v3.13.1             check config /etc/prometheus/prometheus.yml
+
+      - name: Validar Loki
+        run: |
+          docker run --rm             -v "$PWD/monitoring/loki:/etc/loki:ro"             grafana/loki:3.7.3             -config.file=/etc/loki/loki.yml             -verify-config=true
+
+      - name: Validar Grafana Alloy
+        run: |
+          docker run --rm             -v "$PWD/monitoring/alloy:/etc/alloy:ro"             grafana/alloy:v1.17.1             validate /etc/alloy/config.alloy
+
+      - name: Validar dashboards de Grafana
+        run: |
+          find monitoring/grafana/dashboards             -name '*.json'             -print0 |
+          xargs -0 -n1 python -m json.tool >/dev/null

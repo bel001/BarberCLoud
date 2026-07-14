@@ -1,0 +1,103 @@
+---
+- name: Resolver la raíz del repositorio
+  ansible.builtin.command:
+    argv:
+      - git
+      - -C
+      - "{{ playbook_dir }}"
+      - rev-parse
+      - --show-toplevel
+  register: prerequisitos_repository_root_command
+  changed_when: false
+
+- name: Guardar la raíz de BarberCloud
+  ansible.builtin.set_fact:
+    prerequisitos_barbercloud_root: "{{ prerequisitos_repository_root_command.stdout }}"
+
+- name: Verificar Docker CLI
+  ansible.builtin.command:
+    argv:
+      - docker
+      - --version
+  changed_when: false
+
+- name: Verificar Docker Compose V2
+  ansible.builtin.command:
+    argv:
+      - docker
+      - compose
+      - version
+  changed_when: false
+
+- name: Verificar el daemon de Docker
+  ansible.builtin.command:
+    argv:
+      - docker
+      - info
+  changed_when: false
+  no_log: true
+
+- name: Crear directorios locales de ejecución
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    mode: "0700"
+  loop:
+    - "{{ prerequisitos_barbercloud_root }}/.runtime"
+    - "{{ prerequisitos_barbercloud_root }}/.runtime/prometheus"
+    - "{{ prerequisitos_barbercloud_root }}/.runtime/grafana"
+
+- name: Crear contraseña local de Grafana una sola vez
+  ansible.builtin.copy:
+    content: >-
+      {{ lookup('ansible.builtin.password', '/dev/null', length=24,
+      chars=['ascii_letters', 'digits']) }}
+    dest: "{{ prerequisitos_barbercloud_root }}/.runtime/grafana-admin-password"
+    mode: "0600"
+    force: false
+
+- name: Leer contraseña local de Grafana
+  ansible.builtin.slurp:
+    src: "{{ prerequisitos_barbercloud_root }}/.runtime/grafana-admin-password"
+  register: prerequisitos_grafana_password_file
+  no_log: true
+
+- name: Guardar contraseña de Grafana para la plantilla
+  ansible.builtin.set_fact:
+    prerequisitos_grafana_admin_password: >-
+      {{ prerequisitos_grafana_password_file.content | b64decode | trim }}
+  no_log: true
+
+- name: Crear token local del webhook de Grafana una sola vez
+  ansible.builtin.copy:
+    content: >-
+      {{ lookup('ansible.builtin.password', '/dev/null', length=32,
+      chars=['ascii_letters', 'digits']) }}
+    dest: "{{ prerequisitos_barbercloud_root }}/.runtime/grafana-webhook-token"
+    mode: "0600"
+    force: false
+
+- name: Leer token local del webhook de Grafana
+  ansible.builtin.slurp:
+    src: "{{ prerequisitos_barbercloud_root }}/.runtime/grafana-webhook-token"
+  register: prerequisitos_grafana_webhook_token_file
+  no_log: true
+
+- name: Guardar token del webhook para la plantilla
+  ansible.builtin.set_fact:
+    prerequisitos_grafana_webhook_token: >-
+      {{ prerequisitos_grafana_webhook_token_file.content | b64decode | trim }}
+  no_log: true
+
+- name: Crear archivo local de variables del monitoreo
+  ansible.builtin.template:
+    src: monitoring.env.j2
+    dest: "{{ prerequisitos_barbercloud_root }}/.env.monitoring"
+    mode: "0600"
+  no_log: true
+
+- name: Informar que el entorno está preparado
+  ansible.builtin.debug:
+    msg:
+      - "Docker y Docker Compose están disponibles."
+      - "Credenciales locales guardadas en {{ prerequisitos_barbercloud_root }}/.runtime/grafana-admin-password"

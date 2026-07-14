@@ -1,0 +1,82 @@
+---
+- name: Verificar archivos del stack de observabilidad
+  ansible.builtin.stat:
+    path: "{{ prerequisitos_barbercloud_root }}/{{ item }}"
+  loop:
+    - docker-compose.yml
+    - docker-compose.monitoring.yml
+    - monitoring/prometheus/prometheus.yml
+    - monitoring/loki/loki.yml
+    - monitoring/alloy/config.alloy
+    - monitoring/grafana/provisioning/datasources/prometheus.yml
+    - monitoring/grafana/provisioning/datasources/loki.yml
+    - monitoring/grafana/dashboards/barbercloud-observabilidad.json
+  register: observabilidad_archivos
+
+- name: Confirmar que los archivos del stack existen
+  ansible.builtin.assert:
+    that:
+      - item.stat.exists
+    fail_msg: "Falta {{ item.item }}"
+  loop: "{{ observabilidad_archivos.results }}"
+  loop_control:
+    label: "{{ item.item }}"
+
+- name: Construir y levantar BarberCloud con observabilidad
+  community.docker.docker_compose_v2:
+    cli_context: desktop-linux
+    project_src: "{{ prerequisitos_barbercloud_root }}"
+    files:
+      - docker-compose.yml
+      - docker-compose.monitoring.yml
+    env_files:
+      - .env.monitoring
+    state: present
+    build: policy
+    pull: missing
+    remove_orphans: true
+    wait: true
+    wait_timeout: 300
+  register: observabilidad_compose_result
+
+- name: Esperar los servicios HTTP
+  ansible.builtin.uri:
+    url: "{{ item.url }}"
+    method: GET
+    status_code: 200
+    return_content: false
+  register: observabilidad_service_health
+  until: observabilidad_service_health.status == 200
+  retries: 40
+  delay: 4
+  loop:
+    - name: frontend
+      url: http://127.0.0.1:8080
+    - name: backend
+      url: http://127.0.0.1:3001/health
+    - name: prometheus
+      url: "http://127.0.0.1:{{ prerequisitos_prometheus_port }}/-/ready"
+    - name: grafana
+      url: "http://127.0.0.1:{{ prerequisitos_grafana_port }}/api/health"
+    - name: cadvisor
+      url: "http://127.0.0.1:{{ prerequisitos_cadvisor_port }}/"
+    - name: node-exporter
+      url: "http://127.0.0.1:{{ prerequisitos_node_exporter_port }}/metrics"
+    - name: loki
+      url: "http://127.0.0.1:{{ prerequisitos_loki_port }}/ready"
+    - name: alloy
+      url: "http://127.0.0.1:{{ prerequisitos_alloy_port }}/metrics"
+  loop_control:
+    label: "{{ item.name }}"
+
+- name: Mostrar accesos del entorno
+  ansible.builtin.debug:
+    msg:
+      - "Frontend: http://localhost:8080"
+      - "Backend: http://localhost:3001"
+      - "Grafana: http://localhost:{{ prerequisitos_grafana_port }}"
+      - "Prometheus: http://localhost:{{ prerequisitos_prometheus_port }}"
+      - "Loki: http://localhost:{{ prerequisitos_loki_port }}"
+      - "Alloy: http://localhost:{{ prerequisitos_alloy_port }}"
+      - "Usuario Grafana: {{ prerequisitos_grafana_admin_user }}"
+      - "Contraseña Grafana: {{ prerequisitos_barbercloud_root }}/.runtime/grafana-admin-password"

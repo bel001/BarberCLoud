@@ -1,0 +1,63 @@
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+discovery.docker "barbercloud" {
+  host             = "unix:///var/run/docker.sock"
+  refresh_interval = "5s"
+
+  filter {
+    name   = "label"
+    values = ["com.docker.compose.project=barbercloud"]
+  }
+}
+
+discovery.relabel "barbercloud" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_project"]
+    target_label  = "compose_project"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "(backend|frontend|dynamodb)"
+    target_label  = "tier"
+    replacement   = "application"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    regex         = "(grafana|prometheus|cadvisor|node-exporter|loki|alloy)"
+    target_label  = "tier"
+    replacement   = "infrastructure"
+  }
+}
+
+loki.source.docker "barbercloud" {
+  host             = "unix:///var/run/docker.sock"
+  targets          = discovery.docker.barbercloud.targets
+  labels           = { environment = "local", project = "barbercloud" }
+  relabel_rules    = discovery.relabel.barbercloud.rules
+  refresh_interval = "5s"
+  forward_to       = [loki.write.local.receiver]
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}

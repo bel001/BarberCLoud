@@ -10,6 +10,7 @@ export default defineConfig({
         "src/lib/audit.js",
         "src/lib/auth.js",
         "src/lib/notifications.js",
+      "src/lib/observability.js",
         "src/lib/response.js",
         "src/handlers/**/*.js"
       ],

@@ -1,4 +1,4 @@
-import express from 'express';
+import express from 'express'; import { registry, httpMetricsMiddleware, handleGrafanaWebhook } from './lib/observability.js';
 import cors from 'cors';
 import { config } from './lib/config.js';
 import { AppError } from './lib/errors.js';
@@ -15,12 +15,12 @@ import { scanByType } from './lib/repository.js';
 const app = express();
 app.disable('x-powered-by');
 app.use(cors({ origin: config.corsOrigin === '*' ? true : config.corsOrigin }));
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '1mb' })); app.use(httpMetricsMiddleware);
 
 const asyncRoute = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 const send = (res, data, message) => res.json(ok(data, message));
 
-app.get('/health', (_req, res) => res.json({ ok: true, service: 'barbercloud-backend', mode: 'local', timestamp: new Date().toISOString() }));
+app.get('/health', (_req, res) => res.json({ ok: true, service: 'barbercloud-backend', mode: 'local', timestamp: new Date().toISOString() })); app.get('/metrics', asyncRoute(async (_req, res) => { res.set('Content-Type', registry.contentType); res.end(await registry.metrics()); })); app.post('/alerts/grafana', handleGrafanaWebhook);
 
 // Solo local. En AWS, Cognito Hosted UI y API Gateway JWT reemplazan estas dos rutas.
 app.post('/api/auth/login', asyncRoute(async (req, res) => send(res, await login(req.body), 'Sesión iniciada')));
