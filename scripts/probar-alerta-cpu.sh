@@ -4,21 +4,19 @@ set -Eeuo pipefail
 REPO="$(git rev-parse --show-toplevel)"
 cd "$REPO"
 
-echo "Generando carga de CPU durante 70 segundos..."
+COMPOSE=(
+  docker --context desktop-linux compose
+  --env-file .env.monitoring
+  -f docker-compose.yml
+  -f docker-compose.monitoring.yml
+)
 
-docker --context desktop-linux compose \
-  --env-file .env.monitoring \
-  -f docker-compose.yml \
-  -f docker-compose.monitoring.yml \
-  exec -T backend \
-  node -e '
-    const fin = Date.now() + 70000;
+echo "Generando carga de CPU durante 75 segundos..."
+"${COMPOSE[@]}" exec -T backend node -e '
+  const fin = Date.now() + 75000;
+  while (Date.now() < fin) Math.sqrt(Math.random());
+'
 
-    while (Date.now() < fin) {
-      Math.sqrt(Math.random());
-    }
-  '
-
-echo
-echo "Carga finalizada."
-echo "Revisa la alerta CPU backend > 50 % en Grafana."
+echo "Carga finalizada. Revisa en Grafana:"
+echo "Alerting > Alert rules > CPU backend superior al 50 por ciento"
+echo "Logs > evento grafana_alert"
