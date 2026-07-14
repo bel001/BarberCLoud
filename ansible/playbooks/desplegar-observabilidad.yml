@@ -1,0 +1,7 @@
+---
+- name: Desplegar BarberCloud con Grafana y Prometheus
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: prerequisitos
+    - role: observabilidad
