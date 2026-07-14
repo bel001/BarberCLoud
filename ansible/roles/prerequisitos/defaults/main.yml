@@ -4,3 +4,5 @@ prerequisitos_grafana_port: 3000
 prerequisitos_prometheus_port: 9090
 prerequisitos_cadvisor_port: 8081
 prerequisitos_node_exporter_port: 9100
+prerequisitos_loki_port: 3100
+prerequisitos_alloy_port: 12345
