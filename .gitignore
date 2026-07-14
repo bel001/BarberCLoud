@@ -9,3 +9,5 @@ backend/coverage/
 
 # Archivos de instrucciones locales
 /frontend/CLAUDE.md
+.env.monitoring
+.runtime/

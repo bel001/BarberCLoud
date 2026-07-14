@@ -1,0 +1,6 @@
+---
+- name: Preparar el entorno local de BarberCloud
+  hosts: localhost
+  gather_facts: false
+  roles:
+    - role: prerequisitos
