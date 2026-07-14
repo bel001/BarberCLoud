@@ -73,3 +73,73 @@ groups:
         labels:
           severity: warning
           service: backend
+
+  - orgId: 1
+    name: BarberCloud Disponibilidad
+    folder: BarberCloud
+    interval: 10s
+    rules:
+      - uid: barbercloud_backend_down
+        title: Backend BarberCloud no disponible
+        condition: C
+        data:
+          - refId: A
+            relativeTimeRange:
+              from: 60
+              to: 0
+            datasourceUid: prometheus
+            model:
+              datasource:
+                type: prometheus
+                uid: prometheus
+              editorMode: code
+              expr: up{job="barbercloud-backend"}
+              instant: false
+              intervalMs: 1000
+              legendFormat: backend
+              maxDataPoints: 43200
+              range: true
+              refId: A
+          - refId: B
+            datasourceUid: __expr__
+            model:
+              conditions: []
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: A
+              reducer: last
+              refId: B
+              type: reduce
+          - refId: C
+            datasourceUid: __expr__
+            model:
+              conditions:
+                - evaluator:
+                    params:
+                      - 1
+                    type: lt
+                  operator:
+                    type: and
+                  query:
+                    params:
+                      - C
+                  reducer:
+                    params: []
+                    type: last
+                  type: query
+              datasource:
+                type: __expr__
+                uid: __expr__
+              expression: B
+              refId: C
+              type: threshold
+        noDataState: Alerting
+        execErrState: Error
+        for: 20s
+        annotations:
+          description: Prometheus no puede consultar el endpoint de métricas del backend.
+          summary: El backend de BarberCloud no está disponible.
+        labels:
+          severity: critical
+          service: backend
