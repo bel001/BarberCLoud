@@ -1,7 +1,7 @@
 export const OAUTH_TRANSACTION_KEY = 'barbercloud_oauth_transaction';
 export const OAUTH_TRANSACTION_TTL_MS = 10 * 60 * 1000;
 
-const base64Url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes)))
+const base64Url = (bytes) => btoa(String.fromCodePoint(...new Uint8Array(bytes)))
   .replaceAll('+', '-')
   .replaceAll('/', '_')
   .replaceAll('=', '');

@@ -1,20 +1,25 @@
 import { runtimeConfig } from './config.js';
+import {
+  clearSession,
+  readSession,
+  writeSession,
+} from './session-storage.js';
 
 export { runtimeConfig };
 
 export const storage = {
   get session() {
-    try {
-      const encoded = sessionStorage.getItem('barbercloud_session');
-      return encoded ? JSON.parse(decodeURIComponent(encoded)) : null;
-    } catch {
-      return null;
-    }
+    return readSession(sessionStorage);
   },
+
   set session(value) {
-    if (value) sessionStorage.setItem('barbercloud_session', encodeURIComponent(JSON.stringify(value)));
-    else sessionStorage.removeItem('barbercloud_session');
-  }
+    if (value) {
+      writeSession(sessionStorage, value);
+      return;
+    }
+
+    clearSession(sessionStorage);
+  },
 };
 
 function apiEndpoint(path, method = 'GET') {
