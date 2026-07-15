@@ -1,0 +1,188 @@
+name: Despliegue AWS
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Ambiente de destino
+        required: true
+        type: choice
+        options:
+          - dev
+          - prod
+
+permissions:
+  checks: read
+  contents: read
+  id-token: write
+
+concurrency:
+  group: deploy-${{ github.event_name == 'push' && 'dev' || inputs.environment }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Desplegar ${{ github.event_name == 'push' && 'dev' || inputs.environment }}
+    if: github.event_name == 'workflow_dispatch' || vars.AWS_DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ github.event_name == 'push' && 'dev' || inputs.environment }}
+    env:
+      DEPLOY_ENV: ${{ github.event_name == 'push' && 'dev' || inputs.environment }}
+      AWS_REGION: ${{ vars.AWS_REGION }}
+      AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+      TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+      TF_LOCK_TABLE: ${{ vars.TF_LOCK_TABLE }}
+      TF_VAR_cloudfront_origin_access_control_id: ${{ vars.CLOUDFRONT_ORIGIN_ACCESS_CONTROL_ID }}
+      TF_VAR_ses_sender_email: ${{ vars.SES_SENDER_EMAIL }}
+      TF_VAR_allowed_origins: '[]'
+      TF_VAR_frontend_callback_urls: '[]'
+      TF_VAR_frontend_logout_urls: '[]'
+      TF_VAR_environment: ${{ github.event_name == 'push' && 'dev' || inputs.environment }}
+      TF_IN_AUTOMATION: true
+
+    steps:
+      - name: Descargar código
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
+
+      - name: Validar configuración de despliegue
+        shell: bash
+        run: |
+          for name in AWS_REGION AWS_DEPLOY_ROLE_ARN TF_STATE_BUCKET TF_LOCK_TABLE TF_VAR_cloudfront_origin_access_control_id TF_VAR_ses_sender_email; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Falta configurar la variable de entorno de GitHub: ${name}"
+              exit 1
+            fi
+          done
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            expected_ref="refs/heads/develop"
+            if [ "$DEPLOY_ENV" = "prod" ]; then expected_ref="refs/heads/main"; fi
+            if [ "$GITHUB_REF" != "$expected_ref" ]; then
+              echo "::error::${DEPLOY_ENV} solo puede desplegarse desde ${expected_ref#refs/heads/}."
+              exit 1
+            fi
+          fi
+
+      - name: Esperar y verificar controles CI
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          required_checks=(
+            "Calidad y cobertura"
+            "Terraform y Checkov"
+            "Ansible y observabilidad"
+            "SonarCloud Code Analysis"
+          )
+          for attempt in $(seq 1 60); do
+            checks=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/check-runs?per_page=100")
+            pending=false
+            for name in "${required_checks[@]}"; do
+              conclusion=$(jq -r --arg name "$name" \
+                '[.check_runs[] | select(.name == $name)] | sort_by(.started_at) | last | .conclusion // "pending"' \
+                <<<"$checks")
+              case "$conclusion" in
+                success) ;;
+                pending|null|"") pending=true ;;
+                *)
+                  echo "::error::El check '${name}' falló para ${GITHUB_SHA}: ${conclusion}."
+                  exit 1
+                  ;;
+              esac
+            done
+            if [ "$pending" = false ]; then
+              echo "Los controles CI requeridos están aprobados."
+              exit 0
+            fi
+            echo "Controles CI pendientes para ${GITHUB_SHA}; reintento ${attempt}/60."
+            sleep 20
+          done
+          echo "::error::Los controles CI no terminaron dentro de 20 minutos."
+          exit 1
+
+      - name: Autenticar en AWS mediante OIDC
+        uses: aws-actions/configure-aws-credentials@517a711dbcd0e402f90c77e7e2f81e849156e31d # v6.2.2
+        with:
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Configurar Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
+        with:
+          terraform_version: 1.5.7
+          terraform_wrapper: false
+
+      - name: Instalar dependencias de producción
+        run: npm -C backend ci --omit=dev
+
+      - name: Inicializar estado remoto
+        shell: bash
+        run: |
+          terraform -chdir=iac init -input=false -reconfigure \
+            -backend-config="bucket=${TF_STATE_BUCKET}" \
+            -backend-config="key=barbercloud/${DEPLOY_ENV}/terraform.tfstate" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="dynamodb_table=${TF_LOCK_TABLE}" \
+            -backend-config="encrypt=true"
+
+      - name: Validar Terraform
+        run: |
+          terraform -chdir=iac fmt -check -recursive
+          terraform -chdir=iac validate
+
+      - name: Preparar y verificar identidad SES
+        shell: bash
+        run: |
+          if aws sesv2 get-email-identity --email-identity "$TF_VAR_ses_sender_email" > /tmp/ses-identity.json 2>/dev/null; then
+            if ! terraform -chdir=iac state list | grep -qx 'aws_ses_email_identity.sender'; then
+              terraform -chdir=iac import aws_ses_email_identity.sender "$TF_VAR_ses_sender_email"
+            fi
+          else
+            terraform -chdir=iac apply -auto-approve -target=aws_ses_email_identity.sender
+            echo "::error::SES envió la verificación a ${TF_VAR_ses_sender_email}. Confirma el correo y vuelve a ejecutar el despliegue."
+            exit 1
+          fi
+          if ! jq -e '.VerifiedForSendingStatus == true' /tmp/ses-identity.json >/dev/null; then
+            echo "::error::La identidad SES todavía no está verificada."
+            exit 1
+          fi
+
+      - name: Planificar infraestructura
+        run: terraform -chdir=iac plan -input=false -out=tfplan
+
+      - name: Aplicar infraestructura
+        run: terraform -chdir=iac apply -input=false -auto-approve tfplan
+
+      - name: Invalidar caché de CloudFront
+        shell: bash
+        run: |
+          DISTRIBUTION_ID=$(terraform -chdir=iac output -raw cloudfront_distribution_id)
+          INVALIDATION_ID=$(aws cloudfront create-invalidation \
+            --distribution-id "$DISTRIBUTION_ID" \
+            --paths '/*' \
+            --query 'Invalidation.Id' \
+            --output text)
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "$DISTRIBUTION_ID" \
+            --id "$INVALIDATION_ID"
+
+      - name: Ejecutar smoke test desplegado
+        shell: bash
+        run: |
+          FRONTEND_URL=$(terraform -chdir=iac output -raw frontend_url)
+          PUBLIC_API=$(terraform -chdir=iac output -json api_urls | jq -r '.availability')
+          curl --fail --show-error --silent --retry 30 --retry-delay 10 --retry-all-errors "$FRONTEND_URL" >/dev/null
+          curl --fail --show-error --silent --retry 12 --retry-delay 5 --retry-all-errors "$PUBLIC_API/api/public/services" | jq -e '.ok == true' >/dev/null
+          echo "Despliegue verificado: ${FRONTEND_URL}"

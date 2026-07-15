@@ -7,13 +7,16 @@ import {
 } from '@aws-sdk/client-cognito-identity-provider';
 import { putItem } from '../src/lib/repository.js';
 import { config } from '../src/lib/config.js';
+import { validateDemoConfiguration } from './demo-config.js';
 
-const userPoolId = process.env.USER_POOL_ID;
-const password = process.env.DEMO_PASSWORD || 'BarberCloud2026!';
-if (!userPoolId || !process.env.TABLE_NAME) {
-  console.error('Define USER_POOL_ID y TABLE_NAME antes de ejecutar este script.');
+let demoConfig;
+try {
+  demoConfig = validateDemoConfiguration();
+} catch (error) {
+  console.error(error.message);
   process.exit(1);
 }
+const { password, userPoolId } = demoConfig;
 
 const client = new CognitoIdentityProviderClient({ region: config.region });
 const users = [
@@ -21,7 +24,7 @@ const users = [
   { email: 'barbero@barbercloud.com', name: 'Diego Barbero', phone: '+51986111222', role: 'BARBERO', specialties: ['Corte clásico', 'Barba'] },
   { email: 'secretaria@barbercloud.com', name: 'Ana Secretaria', phone: '+51985333444', role: 'SECRETARIA' },
   { email: 'admin@barbercloud.com', name: 'Lucía Administradora', phone: '+51984555666', role: 'ADMIN' }
-];
+].filter((user) => user.role !== 'ADMIN' || process.env.INCLUDE_DEMO_ADMIN === 'true');
 
 for (const user of users) {
   try {

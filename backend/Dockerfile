@@ -4,4 +4,4 @@ COPY package*.json ./
 RUN npm install
 COPY . .
 EXPOSE 3001
-CMD ["sh", "-c", "npm run create-table && npm run seed && npm run dev"]
+CMD ["sh", "-c", "npm run create-table && if [ \"${SEED_DEMO:-false}\" = \"true\" ]; then npm run seed; fi && npm run dev"]

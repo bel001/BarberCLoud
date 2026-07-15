@@ -5,16 +5,8 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "lcov"],
-      include: [
-        "src/services/**/*.js",
-        "src/lib/audit.js",
-        "src/lib/auth.js",
-        "src/lib/notifications.js",
-      "src/lib/observability.js",
-        "src/lib/response.js",
-        "src/handlers/**/*.js"
-      ],
-      exclude: ["src/local-server.js"],
+      include: ["src/**/*.js"],
+      exclude: ["src/local-server.js", "src/lib/db.js"],
       thresholds: {
         statements: 80,
         branches: 70,

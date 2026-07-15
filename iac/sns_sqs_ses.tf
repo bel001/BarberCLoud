@@ -57,4 +57,8 @@ resource "aws_lambda_event_source_mapping" "retry_queue" {
 
 resource "aws_ses_email_identity" "sender" {
   email = var.ses_sender_email
+
+  lifecycle {
+    prevent_destroy = true
+  }
 }

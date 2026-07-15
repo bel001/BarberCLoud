@@ -109,8 +109,11 @@ resource "aws_apigatewayv2_api" "apis" {
   cors_configuration {
     allow_headers = ["authorization", "content-type"]
     allow_methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"]
-    allow_origins = var.allowed_origins
-    max_age       = 3600
+    allow_origins = distinct(concat(
+      var.allowed_origins,
+      ["https://${aws_cloudfront_distribution.frontend.domain_name}"]
+    ))
+    max_age = 3600
   }
 }
 

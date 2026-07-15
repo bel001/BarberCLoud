@@ -6,8 +6,7 @@ export function lambdaResponse(statusCode, body) {
   return {
     statusCode,
     headers: {
-      'content-type': 'application/json',
-      'access-control-allow-origin': '*'
+      'content-type': 'application/json'
     },
     body: JSON.stringify(body)
   };

@@ -113,4 +113,4 @@ for (let index = 0; index < items.length; index += 25) {
     }
   }));
 }
-console.log(`Datos demo cargados: ${items.length} registros.`);
+console.log(`${isLocal ? 'Datos demo' : 'Datos base'} cargados: ${items.length} registros.`);

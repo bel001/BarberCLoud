@@ -1,0 +1,5 @@
+environment              = "staging"
+ses_sender_email         = "remitente-verificado@tu-dominio.com"
+allowed_origins          = []
+frontend_callback_urls   = []
+frontend_logout_urls     = []

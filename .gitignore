@@ -3,6 +3,12 @@ iac/lambda.zip
 iac/tfplan
 iac/terraform.tfstate
 iac/terraform.tfstate.backup
+iac/*.tfvars
+!iac/environments/*.tfvars.example
+iac/backend.hcl
+!iac/backend.hcl.example
+iac/bootstrap/terraform.tfstate
+iac/bootstrap/terraform.tfstate.backup
 backend/node_modules/
 backend/dist/
 backend/coverage/
@@ -11,3 +17,4 @@ backend/coverage/
 /frontend/CLAUDE.md
 .env.monitoring
 .runtime/
+.omo/

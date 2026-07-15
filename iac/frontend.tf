@@ -68,45 +68,8 @@ resource "aws_s3_bucket_versioning" "frontend" {
   }
 }
 
-resource "aws_cloudfront_origin_access_control" "frontend" {
-  name                              = "${local.prefix}-frontend-oac"
-  description                       = "OAC para frontend privado"
-  origin_access_control_origin_type = "s3"
-  signing_behavior                  = "always"
-  signing_protocol                  = "sigv4"
-}
-
-resource "aws_cloudfront_response_headers_policy" "frontend_security" {
-  name = "${local.prefix}-frontend-security"
-
-  security_headers_config {
-    content_type_options {
-      override = true
-    }
-
-    frame_options {
-      frame_option = "DENY"
-      override     = true
-    }
-
-    referrer_policy {
-      referrer_policy = "strict-origin-when-cross-origin"
-      override        = true
-    }
-
-    strict_transport_security {
-      access_control_max_age_sec = 63072000
-      include_subdomains         = true
-      preload                    = true
-      override                   = true
-    }
-
-    xss_protection {
-      protection = true
-      mode_block = true
-      override   = true
-    }
-  }
+data "aws_cloudfront_response_headers_policy" "frontend_security" {
+  name = "Managed-SecurityHeadersPolicy"
 }
 
 resource "aws_cloudfront_distribution" "frontend" {
@@ -124,7 +87,7 @@ resource "aws_cloudfront_distribution" "frontend" {
   origin {
     domain_name              = aws_s3_bucket.frontend.bucket_regional_domain_name
     origin_id                = "frontend-s3"
-    origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
+    origin_access_control_id = var.cloudfront_origin_access_control_id
   }
 
   default_cache_behavior {
@@ -133,7 +96,7 @@ resource "aws_cloudfront_distribution" "frontend" {
     target_origin_id           = "frontend-s3"
     viewer_protocol_policy     = "redirect-to-https"
     compress                   = true
-    response_headers_policy_id = aws_cloudfront_response_headers_policy.frontend_security.id
+    response_headers_policy_id = data.aws_cloudfront_response_headers_policy.frontend_security.id
 
     forwarded_values {
       query_string = false

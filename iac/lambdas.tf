@@ -11,7 +11,7 @@ resource "aws_lambda_function" "functions" {
   for_each = local.lambda_handlers
 
   function_name = "${local.prefix}-${replace(each.key, "_", "-")}"
-  role          = aws_iam_role.lambda.arn
+  role          = aws_iam_role.lambda[each.key].arn
   runtime       = "nodejs24.x"
   handler       = each.value
 
@@ -57,7 +57,7 @@ resource "aws_lambda_function" "post_confirm_client" {
   #checkov:skip=CKV_AWS_117:La función solo usa DynamoDB y Cognito públicos; una VPC agregaría NAT o endpoints sin acceder a recursos privados.
   #checkov:skip=CKV_AWS_272:El paquete se genera localmente con archive_file; la firma se incorporará cuando exista un pipeline de artefactos con AWS Signer.
   function_name = "${local.prefix}-post-confirm-client"
-  role          = aws_iam_role.lambda.arn
+  role          = aws_iam_role.post_confirm_client.arn
   runtime       = "nodejs24.x"
   handler       = "src/handlers/postConfirmCliente.handler"
 

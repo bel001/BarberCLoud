@@ -17,12 +17,12 @@ jobs:
 
     steps:
       - name: Descargar codigo
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
         with:
           fetch-depth: 0
 
       - name: Configurar Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
           cache: npm
@@ -35,7 +35,7 @@ jobs:
         run: npm -C backend run test:coverage
 
       - name: Ejecutar analisis SonarQube Cloud
-        uses: SonarSource/sonarqube-scan-action@v8
+        uses: SonarSource/sonarqube-scan-action@713881670b6b3676cda39549040e2d88c70d582e # v8
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
@@ -45,10 +45,10 @@ jobs:
 
     steps:
       - name: Descargar codigo
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Configurar Terraform
-        uses: hashicorp/setup-terraform@v4
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4
         with:
           terraform_version: 1.5.7
 
@@ -61,8 +61,13 @@ jobs:
       - name: Terraform validate
         run: terraform -chdir=iac validate
 
+      - name: Validar bootstrap de estado remoto
+        run: |
+          terraform -chdir=iac/bootstrap init -backend=false
+          terraform -chdir=iac/bootstrap validate
+
       - name: Checkov IaC
-        uses: bridgecrewio/checkov-action@v12
+        uses: bridgecrewio/checkov-action@7b972723c44fb3d256283fac96fae5d7c1894bb7 # v12
         with:
           directory: iac
           quiet: true
@@ -74,15 +79,15 @@ jobs:
 
     steps:
       - name: Descargar codigo
-        uses: actions/checkout@v5
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7
 
       - name: Configurar Python
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6
         with:
           python-version: "3.12"
 
       - name: Configurar Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: "24"
 
