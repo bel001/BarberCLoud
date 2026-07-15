@@ -82,7 +82,7 @@ const AUTH = {
 
   base64Url(bytes) {
     const binary = String.fromCharCode(...bytes);
-    return btoa(binary).replace(/[+/=]/g, m => m === '+' ? '-' : m === '/' ? '_' : '');
+    return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
   },
 
   randomBase64Url(byteLength) {

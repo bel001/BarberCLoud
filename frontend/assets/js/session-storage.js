@@ -63,7 +63,7 @@ function sanitizeIdentifier(value) {
 function sanitizeName(value) {
   return String(value ?? '')
     .normalize('NFKC')
-    .replace(/<[^>]+>/g, ' ')
+    .replace(/<[^>]*>/g, ' ')
     .replace(
       /[^A-Za-zÀ-ÖØ-öø-ÿ0-9 .,'-]/g,
       '',
