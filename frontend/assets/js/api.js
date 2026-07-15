@@ -25,49 +25,24 @@ const API = {
     return response.json();
   },
 
-  async post(path, payload, token = null) {
-    const headers = {
-      "Content-Type": "application/json"
-    };
-
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
+  async _request(method, path, payload, token) {
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
     const response = await fetch(`${this.baseFor(path)}${path}`, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload)
+      method, headers, body: JSON.stringify(payload)
     });
-
     if (!response.ok) {
       const error = await response.text().catch(() => "Error de conexion");
-      throw new Error(`POST ${path} failed: ${response.status} ${error}`);
+      throw new Error(`${method} ${path} failed: ${response.status} ${error}`);
     }
-
     return response.json();
   },
 
+  async post(path, payload, token = null) {
+    return this._request("POST", path, payload, token);
+  },
+
   async put(path, payload, token = null) {
-    const headers = {
-      "Content-Type": "application/json"
-    };
-
-    if (token) {
-      headers.Authorization = `Bearer ${token}`;
-    }
-
-    const response = await fetch(`${this.baseFor(path)}${path}`, {
-      method: "PUT",
-      headers,
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      const error = await response.text().catch(() => "Error de conexion");
-      throw new Error(`PUT ${path} failed: ${response.status} ${error}`);
-    }
-
-    return response.json();
+    return this._request("PUT", path, payload, token);
   }
 };
