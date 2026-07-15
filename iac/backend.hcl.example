@@ -1,0 +1,5 @@
+bucket         = "barbercloud-ACCOUNT_ID-us-east-1-terraform-state"
+key            = "barbercloud/dev/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "barbercloud-terraform-locks"
+encrypt        = true

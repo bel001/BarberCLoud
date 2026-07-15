@@ -46,7 +46,9 @@ La cobertura se genera en `backend/coverage/lcov.info` para SonarQube Cloud. El 
 - 80% functions.
 - 80% lines.
 
-## Cuentas demo
+## Cuentas demo locales
+
+Estas credenciales existen únicamente dentro del stack Docker local y no deben reutilizarse en AWS:
 
 cliente@barbercloud.com      / BarberCloud2026!
 secretaria@barbercloud.com   / BarberCloud2026!
@@ -60,17 +62,20 @@ Requisitos:
 - AWS CLI autenticado.
 - Terraform >= 1.5.
 - Node.js 24 para ejecutar pruebas y herramientas locales.
-- Correo remitente verificado en SES para enviar notificaciones reales.
+- Correo remitente real para verificar en SES.
+- Backend remoto creado con `iac/bootstrap`.
 
 Comandos:
 
 ```bash
 npm -C backend ci --omit=dev
-terraform -chdir=iac init
+cp iac/backend.hcl.example iac/backend.hcl
+cp iac/environments/dev.tfvars.example iac/environments/dev.tfvars
+terraform -chdir=iac init -backend-config=backend.hcl
 terraform -chdir=iac fmt -check -recursive
 terraform -chdir=iac validate
-terraform -chdir=iac plan
-terraform -chdir=iac apply
+terraform -chdir=iac plan -var-file=environments/dev.tfvars
+terraform -chdir=iac apply -var-file=environments/dev.tfvars
 ```
 
 Después del `apply`, cargar datos base:
@@ -80,13 +85,7 @@ export TABLE_NAME=$(terraform -chdir=iac output -raw dynamodb_table)
 npm -C backend run seed
 ```
 
-Crear usuarios demo en Cognito:
-
-```bash
-export USER_POOL_ID=$(terraform -chdir=iac output -raw user_pool_id)
-export DEMO_PASSWORD='BarberCloud2026!'
-npm -C backend run create-demo-users
-```
+La preparación del estado remoto, SES, GitHub Environments y la promoción `develop` → `main` se documentan en [`docs/despliegue-aws.md`](docs/despliegue-aws.md). Los usuarios demo de Cognito están prohibidos en producción y requieren ambiente y contraseña explícitos.
 
 Outputs principales:
 

@@ -16,6 +16,8 @@ services:
       AWS_ACCESS_KEY_ID: local
       AWS_SECRET_ACCESS_KEY: local
       DYNAMODB_ENDPOINT: http://dynamodb:8000
+      CORS_ORIGIN: http://localhost:8080,http://127.0.0.1:8080
+      SEED_DEMO: "true"
     depends_on:
       - dynamodb
 

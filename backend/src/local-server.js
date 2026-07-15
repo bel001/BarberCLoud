@@ -14,7 +14,7 @@ import { scanByType } from './lib/repository.js';
 
 const app = express();
 app.disable('x-powered-by');
-app.use(cors({ origin: config.corsOrigin === '*' ? true : config.corsOrigin }));
+app.use(cors({ origin: config.corsOrigins }));
 app.use(express.json({ limit: '1mb' })); app.use(httpMetricsMiddleware);
 
 const asyncRoute = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);

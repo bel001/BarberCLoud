@@ -1,0 +1,6 @@
+environment              = "prod"
+cloudfront_origin_access_control_id = "EJEMPLO123456"
+ses_sender_email         = "remitente-verificado@tu-dominio.com"
+allowed_origins          = []
+frontend_callback_urls   = []
+frontend_logout_urls     = []

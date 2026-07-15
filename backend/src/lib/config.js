@@ -4,7 +4,10 @@ export const config = {
   region: process.env.AWS_REGION || 'us-east-1',
   dynamodbEndpoint: process.env.DYNAMODB_ENDPOINT || undefined,
   authSecret: process.env.AUTH_SECRET || 'barbercloud-development-secret',
-  corsOrigin: process.env.CORS_ORIGIN || '*',
+  corsOrigins: String(process.env.CORS_ORIGIN || 'http://localhost:8080')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   nodeEnv: process.env.NODE_ENV || 'development',
   userPoolId: process.env.USER_POOL_ID || '',
   reservationTopicArn: process.env.RESERVATION_TOPIC_ARN || '',

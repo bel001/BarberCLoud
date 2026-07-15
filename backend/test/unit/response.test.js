@@ -8,10 +8,11 @@ describe('response and lambda helpers', () => {
     expect(ok({ id: 1 }, 'Creado')).toEqual({ ok: true, message: 'Creado', data: { id: 1 } });
   });
 
-  it('crea respuesta Lambda JSON con CORS', () => {
+  it('crea respuesta Lambda JSON y delega CORS en API Gateway', () => {
     const response = lambdaResponse(201, { ok: true });
     expect(response.statusCode).toBe(201);
     expect(response.headers['content-type']).toBe('application/json');
+    expect(response.headers).not.toHaveProperty('access-control-allow-origin');
     expect(JSON.parse(response.body)).toEqual({ ok: true });
   });
 

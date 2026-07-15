@@ -1,15 +1,25 @@
 import { runtimeConfig } from './config.js';
+import {
+  clearSession,
+  readSession,
+  writeSession,
+} from './session-storage.js';
 
 export { runtimeConfig };
 
 export const storage = {
   get session() {
-    try { return JSON.parse(localStorage.getItem('barbercloud_session') || 'null'); } catch { return null; }
+    return readSession(sessionStorage);
   },
+
   set session(value) {
-    if (value) localStorage.setItem('barbercloud_session', JSON.stringify(value));
-    else localStorage.removeItem('barbercloud_session');
-  }
+    if (value) {
+      writeSession(sessionStorage, value);
+      return;
+    }
+
+    clearSession(sessionStorage);
+  },
 };
 
 function apiEndpoint(path, method = 'GET') {
@@ -91,7 +101,7 @@ export function toast(message, type = 'success') {
 
 
 function dialogId(prefix = 'dialog') {
-  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  return `${prefix}-${crypto.randomUUID()}`;
 }
 
 function createDialogFrame({ eyebrow = 'BarberCloud', title, description = '', icon = '✦', tone = 'primary' }) {
@@ -330,24 +340,31 @@ function enhanceNavigation(session) {
     context.innerHTML = `<strong>${escapeHtml(roleLabel)}</strong><span>${escapeHtml(session?.user?.name || 'Navegación principal')}</span>`;
     sidebar.prepend(context);
   }
+  const activeSidebarLink = sidebar?.querySelector('a.active');
+  if (activeSidebarLink && sidebar.scrollWidth > sidebar.clientWidth) {
+    sidebar.scrollLeft = activeSidebarLink.offsetLeft - Math.max(0, (sidebar.clientWidth - activeSidebarLink.offsetWidth) / 2);
+  }
 
-  const enhanceTables = (scope = document) => {
-    scope.querySelectorAll?.('table').forEach((table) => {
-      const headers = [...table.querySelectorAll('thead th')].map((item) => item.textContent.trim());
-      table.querySelectorAll('tbody tr').forEach((row) => {
-        [...row.children].forEach((cell, index) => {
-          if (headers[index]) cell.dataset.label = headers[index];
-        });
+  enhanceTables();
+  const observer = new MutationObserver(enhanceAddedTables);
+  observer.observe(document.body, { childList: true, subtree: true });
+}
+
+function enhanceTables(scope = document) {
+  scope.querySelectorAll?.('table').forEach((table) => {
+    const headers = [...table.querySelectorAll('thead th')].map((item) => item.textContent.trim());
+    table.querySelectorAll('tbody tr').forEach((row) => {
+      [...row.children].forEach((cell, index) => {
+        if (headers[index]) cell.dataset.label = headers[index];
       });
     });
-  };
-  enhanceTables();
-  const observer = new MutationObserver((mutations) => {
-    mutations.forEach((mutation) => mutation.addedNodes.forEach((node) => {
-      if (node.nodeType === Node.ELEMENT_NODE) enhanceTables(node);
-    }));
   });
-  observer.observe(document.body, { childList: true, subtree: true });
+}
+
+function enhanceAddedTables(mutations) {
+  mutations.forEach((mutation) => mutation.addedNodes.forEach((node) => {
+    if (node.nodeType === Node.ELEMENT_NODE) enhanceTables(node);
+  }));
 }
 
 export function mountNav() {

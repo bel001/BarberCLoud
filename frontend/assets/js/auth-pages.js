@@ -1,25 +1,16 @@
 import { api, dashboardFor, formData, runtimeConfig, setLoading, storage, toast } from './app.js';
-
-const base64Url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes)))
-  .replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
-
-async function createPkce() {
-  const random = crypto.getRandomValues(new Uint8Array(32));
-  const verifier = base64Url(random);
-  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier));
-  return { verifier, challenge: base64Url(digest) };
-}
+import { createOAuthTransaction } from './oauth-transaction.js';
 
 async function redirectToCognito(screen = 'login') {
-  const { verifier, challenge } = await createPkce();
-  sessionStorage.setItem('barbercloud_pkce_verifier', verifier);
+  const { challenge, state } = await createOAuthTransaction();
   const params = new URLSearchParams({
     client_id: runtimeConfig.cognito.clientId,
     response_type: 'code',
     scope: 'openid email profile',
     redirect_uri: runtimeConfig.cognito.redirectUri,
     code_challenge_method: 'S256',
-    code_challenge: challenge
+    code_challenge: challenge,
+    state
   });
   if (screen === 'signup') params.set('screen_hint', 'signup');
   window.location.href = `${runtimeConfig.cognito.domain}/oauth2/authorize?${params}`;
