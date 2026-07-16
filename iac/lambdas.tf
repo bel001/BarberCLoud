@@ -20,7 +20,7 @@ resource "aws_lambda_function" "functions" {
   timeout          = 15
   memory_size      = 256
 
-  reserved_concurrent_executions = 2
+  reserved_concurrent_executions = var.lambda_reserved_concurrent_executions
   kms_key_arn                    = aws_kms_key.application.arn
 
   dead_letter_config {
@@ -66,7 +66,7 @@ resource "aws_lambda_function" "post_confirm_client" {
   timeout          = 15
   memory_size      = 256
 
-  reserved_concurrent_executions = 2
+  reserved_concurrent_executions = var.lambda_reserved_concurrent_executions
   kms_key_arn                    = aws_kms_key.application.arn
 
   dead_letter_config {
