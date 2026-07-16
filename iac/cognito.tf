@@ -34,6 +34,10 @@ resource "aws_cognito_user_pool" "main" {
   lambda_config {
     post_confirmation = aws_lambda_function.post_confirm_client.arn
   }
+
+  lifecycle {
+    ignore_changes = [schema]
+  }
 }
 
 resource "aws_lambda_permission" "cognito_post_confirmation" {

@@ -42,8 +42,7 @@ resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
   bucket = aws_s3_bucket.frontend.id
   rule {
     apply_server_side_encryption_by_default {
-      sse_algorithm     = "aws:kms"
-      kms_master_key_id = "alias/aws/s3"
+      sse_algorithm = "AES256"
     }
   }
 }
@@ -147,17 +146,19 @@ resource "aws_s3_bucket_policy" "frontend" {
 resource "aws_s3_object" "frontend_files" {
   for_each = local.frontend_files
 
-  bucket       = aws_s3_bucket.frontend.id
-  key          = each.value
-  source       = "${path.module}/../frontend/${each.value}"
-  etag         = filemd5("${path.module}/../frontend/${each.value}")
-  content_type = lookup(local.frontend_content_types, lower(element(reverse(split(".", each.value)), 0)), "application/octet-stream")
+  bucket                 = aws_s3_bucket.frontend.id
+  key                    = each.value
+  source                 = "${path.module}/../frontend/${each.value}"
+  etag                   = filemd5("${path.module}/../frontend/${each.value}")
+  content_type           = lookup(local.frontend_content_types, lower(element(reverse(split(".", each.value)), 0)), "application/octet-stream")
+  server_side_encryption = "AES256"
 }
 
 resource "aws_s3_object" "runtime_config" {
-  bucket       = aws_s3_bucket.frontend.id
-  key          = "assets/js/config.js"
-  content_type = "application/javascript"
+  bucket                 = aws_s3_bucket.frontend.id
+  key                    = "assets/js/config.js"
+  content_type           = "application/javascript"
+  server_side_encryption = "AES256"
   content = <<-JS
     export const runtimeConfig = ${jsonencode({
   mode = "aws"

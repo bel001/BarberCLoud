@@ -43,6 +43,8 @@ resource "aws_lambda_function" "functions" {
       NODE_ENV                            = "production"
     }
   }
+
+  depends_on = [aws_iam_role_policy.lambda]
 }
 
 resource "aws_cloudwatch_log_group" "lambda" {
@@ -83,6 +85,8 @@ resource "aws_lambda_function" "post_confirm_client" {
       NODE_ENV   = "production"
     }
   }
+
+  depends_on = [aws_iam_role_policy.post_confirm_client]
 }
 
 resource "aws_cloudwatch_log_group" "post_confirm_client" {

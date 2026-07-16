@@ -188,7 +188,7 @@ resource "aws_iam_role_policy" "post_confirm_client" {
         Sid      = "AssignClientGroup"
         Effect   = "Allow"
         Action   = ["cognito-idp:AdminAddUserToGroup"]
-        Resource = aws_cognito_user_pool.main.arn
+        Resource = "arn:${data.aws_partition.current.partition}:cognito-idp:${var.aws_region}:${data.aws_caller_identity.current.account_id}:userpool/*"
       },
       {
         Sid    = "UseApplicationKey"
