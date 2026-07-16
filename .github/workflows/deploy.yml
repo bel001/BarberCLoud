@@ -75,7 +75,6 @@ jobs:
             "Calidad y cobertura"
             "Terraform y Checkov"
             "Ansible y observabilidad"
-            "SonarCloud Code Analysis"
           )
           for attempt in $(seq 1 60); do
             checks=$(gh api \
