@@ -39,6 +39,7 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
+  #checkov:skip=CKV_AWS_145:CloudFront OAC no puede leer objetos cifrados con alias/aws/s3 en este frontend; el bucket mantiene cifrado SSE-S3 y acceso privado solo por CloudFront.
   bucket = aws_s3_bucket.frontend.id
   rule {
     apply_server_side_encryption_by_default {
