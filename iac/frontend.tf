@@ -24,6 +24,7 @@ locals {
 
 resource "aws_s3_bucket" "frontend" {
   #checkov:skip=CKV_AWS_18:El bucket es privado y solo CloudFront OAC puede leerlo; no se mantiene un segundo bucket de logs en este entorno de bajo costo.
+  #checkov:skip=CKV_AWS_145:CloudFront OAC no puede leer objetos cifrados con alias/aws/s3 en este frontend; el bucket mantiene cifrado SSE-S3 y acceso privado solo por CloudFront.
   #checkov:skip=CKV_AWS_144:El frontend se reconstruye desde Git y CloudFront; la replicación entre regiones no forma parte del alcance de recuperación de este entorno.
   #checkov:skip=CKV2_AWS_62:Los objetos estáticos no tienen consumidores de eventos S3 dentro de la lógica de negocio.
   bucket_prefix = "${local.prefix}-frontend-"
@@ -39,7 +40,6 @@ resource "aws_s3_bucket_public_access_block" "frontend" {
 }
 
 resource "aws_s3_bucket_server_side_encryption_configuration" "frontend" {
-  #checkov:skip=CKV_AWS_145:CloudFront OAC no puede leer objetos cifrados con alias/aws/s3 en este frontend; el bucket mantiene cifrado SSE-S3 y acceso privado solo por CloudFront.
   bucket = aws_s3_bucket.frontend.id
   rule {
     apply_server_side_encryption_by_default {
