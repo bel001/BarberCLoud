@@ -14,6 +14,8 @@ locals {
   frontend_files = setsubtract(
     fileset("${path.module}/../frontend", "**"),
     [
+      ".dockerignore",
+      "Dockerfile",
       "nginx.conf",
       "assets/js/config.js",
     ]
