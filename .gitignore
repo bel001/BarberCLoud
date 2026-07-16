@@ -18,3 +18,5 @@ backend/coverage/
 .env.monitoring
 .runtime/
 .omo/
+iac/bootstrap/tfplan
+iac/environments/*.tfvars
