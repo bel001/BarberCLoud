@@ -11,7 +11,13 @@ locals {
     jpeg = "image/jpeg"
     ico  = "image/x-icon"
   }
-  frontend_files = setsubtract(fileset("${path.module}/../frontend", "**"), ["assets/js/config.js"])
+  frontend_files = setsubtract(
+    fileset("${path.module}/../frontend", "**"),
+    [
+      "nginx.conf",
+      "assets/js/config.js",
+    ]
+  )
 }
 
 resource "aws_s3_bucket" "frontend" {
