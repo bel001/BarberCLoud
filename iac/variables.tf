@@ -77,3 +77,18 @@ variable "frontend_logout_urls" {
     error_message = "Cada logout URL debe ser una URL HTTP(S) completa."
   }
 }
+
+
+variable "lambda_reserved_concurrent_executions" {
+  description = "Concurrencia reservada por Lambda. -1 usa la concurrencia compartida de la cuenta."
+  type        = number
+  default     = -1
+
+  validation {
+    condition = (
+      var.lambda_reserved_concurrent_executions == -1 ||
+      var.lambda_reserved_concurrent_executions >= 0
+    )
+    error_message = "La concurrencia debe ser -1 o un número mayor o igual que cero."
+  }
+}
